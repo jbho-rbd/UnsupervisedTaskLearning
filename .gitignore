@@ -34,3 +34,4 @@
 # bin and build folders
 build/
 bin/
+models/
