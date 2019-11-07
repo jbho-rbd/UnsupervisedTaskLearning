@@ -1,0 +1,10 @@
+/home/elena/code/sai/apps/rubberDucky1/03-haptic_cleaning/CMakeFiles/edit_cache.dir
+/home/elena/code/sai/apps/rubberDucky1/03-haptic_cleaning/CMakeFiles/rebuild_cache.dir
+/home/elena/code/sai/apps/rubberDucky1/03-haptic_cleaning/01-hapticData1Robot/CMakeFiles/edit_cache.dir
+/home/elena/code/sai/apps/rubberDucky1/03-haptic_cleaning/01-hapticData1Robot/CMakeFiles/rebuild_cache.dir
+/home/elena/code/sai/apps/rubberDucky1/03-haptic_cleaning/01-hapticData1Robot/CMakeFiles/simviz01.dir
+/home/elena/code/sai/apps/rubberDucky1/03-haptic_cleaning/01-hapticData1Robot/CMakeFiles/controller01.dir
+/home/elena/code/sai/apps/rubberDucky1/03-haptic_cleaning/02-haptic_painting/CMakeFiles/rebuild_cache.dir
+/home/elena/code/sai/apps/rubberDucky1/03-haptic_cleaning/02-haptic_painting/CMakeFiles/edit_cache.dir
+/home/elena/code/sai/apps/rubberDucky1/03-haptic_cleaning/02-haptic_painting/CMakeFiles/simviz02.dir
+/home/elena/code/sai/apps/rubberDucky1/03-haptic_cleaning/02-haptic_painting/CMakeFiles/controller02.dir
