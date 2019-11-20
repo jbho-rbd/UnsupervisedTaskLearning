@@ -3,12 +3,14 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from scipy.spatial.transform import Rotation as R
 from matplotlib import rc
-from read_data import read_data0
+from read_data import read_data0, read_data1
+from classifier import Pr
 
 #y axis becomes z
 #z axis becomes x
 #x axis becomes y
-t, p1, euler, omegas, F, M = read_data0('../data/run1.dat', '../data/bias.force')
+# t, p1, euler, omegas, F, M = read_data0('../data/run1.dat', '../data/bias.force')
+t, p1, vels, euler, omegas, F, M = read_data1('../data2/run1', '../data2/bias.force')#,t0=0,t1=2.0)
 """
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
@@ -32,9 +34,10 @@ ax[0].plot(t,p1[:,0],'r',label='x')
 ax[0].plot(t,p1[:,1],'g',label='y')
 ax[0].plot(t,p1[:,2],'b',label='z')
 ax[0].set_ylabel('meters')
-ax[1].plot(0.5*(t[1:] + t[:-1]),(p1[1:,0] - p1[:-1,0])/(t[1:] - t[:-1]),'r',label='x')
-ax[1].plot(0.5*(t[1:] + t[:-1]),(p1[1:,1] - p1[:-1,1])/(t[1:] - t[:-1]),'g',label='y')
-ax[1].plot(0.5*(t[1:] + t[:-1]),(p1[1:,2] - p1[:-1,2])/(t[1:] - t[:-1]),'b',label='z')
+ax[0].legend(loc='upper right')
+ax[1].plot(t,vels[:,0],'r',label='x')
+ax[1].plot(t,vels[:,1],'g',label='y')
+ax[1].plot(t,vels[:,2],'b',label='z')
 ax[1].set_ylabel('meters/s')
 ax[1].legend(loc='upper right')
 ax[2].plot(t,euler[:,2],'r',label='$\\theta$')
@@ -57,17 +60,24 @@ ax[5].plot(t,M[:,1],'g',label='$\\tau_y$')
 ax[5].plot(t,M[:,2],'b',label='$\\tau_z$')
 ax[5].set_ylabel('Nm')
 ax[5].legend(loc='upper right')
-vlines=np.array([-0.6, 2.55,4.19,6.15,10.19, 12.8])
+vlines = np.genfromtxt("../data2/run1_tlabels",dtype=float)
+vlines = np.insert(vlines,0,0.0)
+# vlines=np.array([0.0, 1.08, 3.27,4.2,5.5,6.72,6.9,7.44, 7.6, 8.02, 8.21, 8.68, 8.98, 10.5])
+# np.savetxt("../data2/run1_tlabels",vlines[1:])
+print(np.genfromtxt("../data2/run1_prmlabels"))
+labels=[Pr(int(idx)) for idx in np.genfromtxt("../data2/run1_prmlabels")]
+# np.savetxt("../data2/prm_tlabels",[label.value for label in labels])
 for i in range(7):
 	for vline in vlines[1:-1]:
 		ax[i].axvline(x=vline,color='k',linestyle=':')
 y = 0.5
 xcords = 0.5*(vlines[1:] + vlines[:-1])
-ax[6].text(xcords[0],y,'FreeSpace',horizontalalignment='center')
-ax[6].text(xcords[1],y,'Contact',horizontalalignment='center')
-ax[6].text(xcords[2],y,'Align',horizontalalignment='center')
-ax[6].text(xcords[3],y,'Screw',horizontalalignment='center')
-ax[6].text(xcords[4],y,'Tighten',horizontalalignment='center')
+for i in range(len(xcords)):
+	ax[6].text(xcords[i],y,labels[i],horizontalalignment='center',rotation=90, verticalalignment='center')
+# ax[6].text(xcords[1],y,'Contact',horizontalalignment='center')
+# ax[6].text(xcords[2],y,'Align',horizontalalignment='center')
+# ax[6].text(xcords[3],y,'Screw',horizontalalignment='center')
+# ax[6].text(xcords[4],y,'Tighten',horizontalalignment='center')
 ax[6].set_xlabel('time')
 ax[6].get_yaxis().set_ticks([])
 labels=('A','B','C','D','E','F')
