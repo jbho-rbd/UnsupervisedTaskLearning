@@ -55,9 +55,14 @@ def read_data0(runfile,forcebias):
         omegas[i,2] = skew_angularvelocity[1,0]
     omegas[-1] = omegas[-2]
     return t, p1, euler, omegas, F, M
-def read_data1(runfile,forcebias,t0=0,t1=-1,obs_output=False,tpairlist=None):
+def read_data1(runfile,forcebias,t0=0,t1=-1,output_fmt='',tpairlist=None,scale=None):
     dat=np.genfromtxt(runfile,skip_header=2)
+    #collect final poses before truncating
+    r_final_inv = R.from_quat(dat[-1,[1,3,4,2]]).inv()
+    #final pose
+    p1_final = dat[-1,[7,5,6]]
     t=dat[:,0] - dat[0,0]
+    #now truncate the data
     if tpairlist:
         idxs=np.array([],dtype=int)
         for tpair in tpairlist:
@@ -75,13 +80,9 @@ def read_data1(runfile,forcebias,t0=0,t1=-1,obs_output=False,tpairlist=None):
     F0=FM[:3]
     M0=FM[3:]
     N = dat.shape[0]
-    #quaternions of rigid bodies
-    q1=dat[:,[1,3,4,2]]
-    #final pose
-    p1_final = dat[-1,[7,5,6]]
-    r_final_inv = R.from_quat(q1[-1]).inv()
     #pos of rigid bodies
     p1=dat[:,[7,5,6]]-p1_final
+    q1=dat[:,[1,3,4,2]]
     #optiforce
     F=dat[:,[9,10,11]]-F0
     M=dat[:,[12,13,14]]-M0
@@ -90,10 +91,21 @@ def read_data1(runfile,forcebias,t0=0,t1=-1,obs_output=False,tpairlist=None):
     omegas = np.zeros((N,3))
     euler = np.zeros((N,3))
     vels = np.zeros((N,3))
+    ks = np.zeros(3)#counter for the revolutions for x y z
     for i in range(N):
         poses[i,0:3,3] = p1[i] - p1_final
         r = R.from_quat(q1[i])*r_final_inv;
-        euler[i] = r.as_euler('zyx', degrees=True)
+        euler[i] = r.as_euler('zyx', degrees=True) + ks*360
+        if(i > 1):
+            for j in range(3):
+                da = euler[i][j] - euler[i-1][j]
+                if (da > 300):
+                    ks[j] -= 1
+                    euler[i][j] -=360
+                if (da < -300):
+                    ks[j] += 1
+                    euler[i][j] += 360
+
         poses[i,0:3,0:3] = r.as_dcm()
     for i in range(N):
         if i == 0:
@@ -109,11 +121,16 @@ def read_data1(runfile,forcebias,t0=0,t1=-1,obs_output=False,tpairlist=None):
         omegas[i,0] = skew_angularvelocity[2,1]
         omegas[i,1] = skew_angularvelocity[0,2]
         omegas[i,2] = skew_angularvelocity[1,0]
-    if obs_output:#output as list of observations
+    if output_fmt == 'obs':#output as list of observations
         obs_list = []
         for i in range(N):
             obs_list.append(Obs(p1[i],q1[i],vels[i], omegas[i], F[i], M[i]))
         return t, obs_list
+    elif output_fmt == 'array':
+        if scale is None:
+            return t, np.hstack((p1,np.pi/180.0*euler[:,[2,1,0]],vels,omegas,F,M))
+        else:
+            return t, np.tile(scale,(N,1))*np.hstack((p1,np.pi/180.0*euler[:,[2,1,0]],vels,omegas,F,M))
     else:
         return t, p1, vels, euler, omegas, F, M
 

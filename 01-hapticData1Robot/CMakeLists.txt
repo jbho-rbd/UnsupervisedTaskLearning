@@ -2,6 +2,7 @@
 set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${RUBBERDUCKY_APPLICATIONS_BINARY_DIR}/01-hapticData1Robot)
 ADD_EXECUTABLE (controller01 controller.cpp  ${RUBBERDUCKY_APPLICATIONS_COMMON_SOURCE})
 ADD_EXECUTABLE (simviz01 simviz.cpp ${RUBBERDUCKY_APPLICATIONS_COMMON_SOURCE})
+include_directories(/usr/local/include/)
 
 # and link the library against the executable
 TARGET_LINK_LIBRARIES (controller01 ${RUBBERDUCKY_APPLICATIONS_COMMON_LIBRARIES})

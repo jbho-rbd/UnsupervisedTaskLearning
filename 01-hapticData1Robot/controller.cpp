@@ -42,8 +42,8 @@ using namespace Eigen;
 // Definition of the state machine for the robot controller
 #define GOTO_INITIAL_CONFIG               0
 #define HAPTIC_CONTROL                    1
-#define PLANE_CONTROL					  2
-#define MAINTAIN_POSITION				  3
+#define MAINTAIN_POSITION				  2
+#define GRIP  							  3
 
 // grab 3 points by pushing the button
 // define the plane normal and point
@@ -94,6 +94,13 @@ const string GUIDANCE_LINE_SECOND_POINT = "sai2::rubberDuckyApplications::simula
 const string GUIDANCE_PLANE_ENABLE = "sai2::rubberDuckyApplications::simulation::_enable_plane_guidance";
 const string GUIDANCE_LINE_ENABLE = "sai2::rubberDuckyApplications::simulation::_enable_line_guidance";
 const string GUIDANCE_SCALE_FACTOR = "sai2::rubberDuckyApplications::simulation::_guidance_scale_factor";
+
+// - gripper
+const string GRIPPER_MODE_KEYS = "sai2::rubberDuckyApplications::panda1::gripper::mode";
+const string GRIPPER_CURRENT_WIDTH_KEYS "sai2::rubberDuckyApplications::gripper::current_width";
+const string GRIPPER_DESIRED_WIDTH_KEYS "sai2::rubberDuckyApplications::gripper::desired_width";
+const string GRIPPER_DESIRED_SPEED_KEYS "sai2::rubberDuckyApplications::gripper::desired_speed";
+const string GRIPPER_DESIRED_FORCE_KEYS "sai2::rubberDuckyApplications::gripper::desired_force";
 
 /* -------------------------
 	Haptic device keys 
@@ -176,6 +183,14 @@ int main() {
 		ROBOT_GRAVITY_KEY = "sai2::FrankaPanda::Bonnie::sensors::model::robot_gravity";      
 			
 		FORCE_SENSED_KEY= "sai2::ATIGamma_Sensor::force_torque";	
+
+		GRIPPER_MODE_KEY  = "sai2::FrankaPanda::Bonnie::mode"; // m for move and g for graps
+		GRIPPER_MAX_WIDTH_KEY  = "sai2::FrankaPanda::Bonnie::max_width";
+		GRIPPER_CURRENT_WIDTH_KEY  = "sai2::FrankaPanda::Bonnie::current_width";
+		GRIPPER_DESIRED_WIDTH_KEY  = "sai2::FrankaPanda::Bonnie::desired_width";
+		GRIPPER_DESIRED_SPEED_KEY  = "sai2::FrankaPanda::Bonnie::desired_speed";
+		GRIPPER_DESIRED_FORCE_KEY  = "sai2::FrankaPanda::Bonnie::desired_force";
+
 	}
 
 	/* --------------------------------------------------------------------------------------
@@ -431,6 +446,9 @@ int main() {
 	Eigen::Vector3d force_three = Vector3d::Zero();
 	Eigen::Vector3d force_mean = Vector3d::Zero();
 
+	// Text file for writing forces 
+	FILE *fForce;
+
 	/* --------------------------------------------------------------------------------------
    		Run main cycle
 	-----------------------------------------------------------------------------------------*/
@@ -496,7 +514,11 @@ int main() {
 	
 		f_task_sensed_sensor_point = -f_task_sensed_sensor_point;
 	}
-
+	// appends the force to "Force.dat" at every loop 
+	fForce = fopen("Force.dat", "a");
+	fprintf(fForce, "%.16e %.16e %.16e %.16e %.16e %.16e  \n", f_task_sensed_sensor_point[0], f_task_sensed_sensor_point[1], f_task_sensed_sensor_point[2],
+		f_task_sensed_sensor_point[3], f_task_sensed_sensor_point[4], f_task_sensed_sensor_point[5]);
+	fclose(fForce);
 
 	// Send sensed force to robot controller in sensor frame
 	posori_task->updateSensedForceAndMoment(-R_sensor.transpose()*f_task_sensed_sensor_point.head(3), -R_sensor.transpose()*f_task_sensed_sensor_point.tail(3));
@@ -576,6 +598,7 @@ int main() {
 
 			gripper_state_prev = gripper_state;
 
+
 			state = HAPTIC_CONTROL;
 		}
 	}
@@ -625,122 +648,57 @@ int main() {
 
 			state = MAINTAIN_POSITION;
 
-		// if the button was pushed grab the next point to define the plane
 		}
 		else if(isPressed) //If the button was pushed grab the next point to define the plane
 		{
-			point_counter++;
-
 			if(point_counter == 1) {
 
-				// grab point
-				point_one = posori_task->_current_position;
-				point_one = transformDev_Rob * (point_one - teleop_task->_center_position_robot)/Ks + teleop_task->_home_position_device;
-				// grab force
-				force_one = -teleop_task->_commanded_force_device;
-			}
-			else if(point_counter == 2) {
-
-				// grab point
-				point_two = posori_task->_current_position;
-				point_two = transformDev_Rob * (point_two - teleop_task->_center_position_robot)/Ks + teleop_task->_home_position_device;
-
-				vector_one = point_two - point_one;
-				// grab force
-				force_two = -teleop_task->_commanded_force_device;
-
-			}
-			else if(point_counter == 3) {
-
-				// grab point
-				point_three = posori_task->_current_position;
-				point_three = transformDev_Rob * (point_three - teleop_task->_center_position_robot)/Ks + teleop_task->_home_position_device;
-
-				vector_two = point_three - point_one;
-				guidance_normal_vec = vector_one.cross(vector_two);
-				guidance_normal_vec = guidance_normal_vec / guidance_normal_vec.norm();
-				
-				Eigen::Vector3d z_axis;
-				z_axis << 0, 0, 1;
-				if(guidance_normal_vec.dot(z_axis) < 0) {
-					guidance_normal_vec = -guidance_normal_vec;
-				}
-				cout << "Plane normal vector: " << guidance_normal_vec.transpose() << endl;
-
-				// Set guidance plane in haptic controller
-				teleop_task->setPlane(point_three, guidance_normal_vec);
-				
-				// grab force
-				force_three = -teleop_task->_commanded_force_device;
-
-				// Compute the mean force to apply to the plane
-				force_mean = (force_one.dot(guidance_normal_vec) + force_two.dot(guidance_normal_vec) + force_three.dot(guidance_normal_vec))/3.0 * guidance_normal_vec;
-				//force_mean << 0.0, 0.0, -10.0;
-				posori_task->_desired_force = force_mean;				
-				cout << "Desired mean force: " << force_mean.transpose() << endl;
-
-				// set up unified force control along normal vector in robot space
-				Eigen::Vector3d guidance_normal_vec_robot = transformDev_Rob.transpose() * guidance_normal_vec;
-				posori_task->setForceAxis(guidance_normal_vec_robot);
-
-				// Update the selection matrices for haptic controller
-				teleop_task->updateSelectionMatrices(posori_task->_sigma_position, posori_task->_sigma_orientation,
-								 						posori_task->_sigma_force, posori_task->_sigma_moment);
-
-				// Switch to new haptic controller
+				// joint controller to maintin robot in current position
+				joint_task->reInitializeTask();
 				teleop_task->reInitializeTask();
-				teleop_task->_haptic_feedback_from_proxy = false; // If set to true, the force feedback is computed from a stiffness/damping proxy.
-			    teleop_task->_filter_on = true;
-				teleop_task->_send_haptic_feedback = true;
-				
-				// Use plane guidance (this plane feedback is additional to the spring-damping guidance)
-				teleop_task->_enable_plane_guidance = false;
-				redis_client.set(GUIDANCE_PLANE_ENABLE, to_string(teleop_task->_enable_plane_guidance));
-				redis_client.setEigenMatrixJSON(GUIDANCE_PLANE_POINT_KEY, point_three);
-				redis_client.setEigenMatrixJSON(GUIDANCE_PLANE_NORMAL_KEY, guidance_normal_vec);
 
-				state = PLANE_CONTROL;
+				// set current haptic device position
+				teleop_task->setDeviceCenter(teleop_task->_current_position_device, teleop_task->_current_rotation_device);
+
+				state = GRIP;
 			}
 		}
 	}
+	else if(state == GRIP){
+				//engage grippers on bottle cap
+			redis_client.set(GRIPPER_MODE_KEYS, "g");
+			redis_client.set(GRIPPER_DESIRED_FORCE_KEYS, to_string(35)); //value of 35 copied from Mikael's code
 
-	else if(state == PLANE_CONTROL) {
-		
-		//// Unified haptic controller ////
-		//Compute haptic commands
-		teleop_task->computeHapticCommandsUnifiedControl3d(posori_task->_desired_position, desired_force_robot);
-		posori_task->_desired_force = force_mean + desired_force_robot;
-		//posori_task->_desired_force = desired_force_robot;
-		
-		// update model and priority
-		N_prec.setIdentity();
-		posori_task->updateTaskModel(N_prec);
-		N_prec = posori_task->_N;
-		joint_task->updateTaskModel(N_prec);
-		// Adjust mass matrix to increase wrist desired stiffness
-		for(int i=3 ; i<6 ; i++)
-		{
-			posori_task->_Lambda(i,i) += 0.1;
-		}
-		// Compute torques
-		posori_task->computeTorques(posori_task_torques);
-		joint_task->computeTorques(joint_task_torques);
-		command_torques = posori_task_torques + joint_task_torques + coriolis_torques;
+			// update tasks model
+			N_prec.setIdentity();
+			joint_task->updateTaskModel(N_prec);
 
-		if(remote_enabled == 0)
-		{
-			// joint controller to maintin robot in current position
-			joint_task->reInitializeTask();
-			// joint_task->_desired_position = robot->_q;
-			teleop_task->reInitializeTask();
+			// Adjust mass matrix to increase wrist desired stiffness
+			for(int i =4 ; i<7 ; i++)
+			{
+				robot->_M(i,i) += 0.07;
+			}
 
-			// set current haptic device position
-			teleop_task->setDeviceCenter(teleop_task->_current_position_device, teleop_task->_current_rotation_device);
+			// compute torques
+			joint_task->computeTorques(joint_task_torques);
+			command_torques = joint_task_torques + coriolis_torques;
 
-			state = MAINTAIN_POSITION;
+			// Maintin haptic device position
+			teleop_task->HomingTask();
+			if(remote_enabled == 0)
+			{
+				// joint controller to maintin robot in current position
+				joint_task->reInitializeTask();
+				teleop_task->reInitializeTask();
 
-		// if the button was pushed grab the next point to define the plane
-		}
+				// set current haptic device position
+				teleop_task->setDeviceCenter(teleop_task->_current_position_device, teleop_task->_current_rotation_device);
+
+				state = MAINTAIN_POSITION;
+
+			}
+
+
 	}
 
 	else if(state == MAINTAIN_POSITION) //Maintain the robot in current position

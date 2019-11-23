@@ -10,7 +10,7 @@ from classifier import Pr
 #z axis becomes x
 #x axis becomes y
 # t, p1, euler, omegas, F, M = read_data0('../data/run1.dat', '../data/bias.force')
-t, p1, vels, euler, omegas, F, M = read_data1('../data2/run1', '../data2/bias.force')#,t0=0,t1=2.0)
+t, p1, vels, euler, omegas, F, M = read_data1('../data2/run1', '../data2/bias.force',t0=0,t1=5.0)
 """
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
@@ -45,10 +45,10 @@ ax[2].plot(t,euler[:,1],'g',label='$\Phi$')
 ax[2].plot(t,euler[:,0],'b',label='$\Psi$')
 ax[2].set_ylabel('degrees')
 ax[2].legend(loc='upper right')
-ax[3].plot(t,omegas[:,0]*180/np.pi,'r',label='$\omega_x$')
-ax[3].plot(t,omegas[:,1]*180/np.pi,'g',label='$\omega_y$')
-ax[3].plot(t,omegas[:,2]*180/np.pi,'b',label='$\omega_z$')
-ax[3].set_ylabel('deg/s')
+ax[3].plot(t,omegas[:,0],'r',label='$\omega_x$')
+ax[3].plot(t,omegas[:,1],'g',label='$\omega_y$')
+ax[3].plot(t,omegas[:,2],'b',label='$\omega_z$')
+ax[3].set_ylabel('rad/s')
 ax[3].legend(loc='upper right')
 ax[4].plot(t,F[:,0],'r',label='$f_x$')
 ax[4].plot(t,F[:,1],'g',label='$f_y$')
@@ -62,11 +62,12 @@ ax[5].set_ylabel('Nm')
 ax[5].legend(loc='upper right')
 vlines = np.genfromtxt("../data2/run1_tlabels",dtype=float)
 vlines = np.insert(vlines,0,0.0)
-# vlines=np.array([0.0, 1.08, 3.27,4.2,5.5,6.72,6.9,7.44, 7.6, 8.02, 8.21, 8.68, 8.98, 10.5])
-# np.savetxt("../data2/run1_tlabels",vlines[1:])
 print(np.genfromtxt("../data2/run1_prmlabels"))
 labels=[Pr(int(idx)) for idx in np.genfromtxt("../data2/run1_prmlabels")]
-# np.savetxt("../data2/prm_tlabels",[label.value for label in labels])
+# vlines=np.array([0.0, 1.08, 3.27,4.2,5.5,6.72,6.9,7.44, 7.6, 8.02, 8.21, 8.68, 8.98, 9.97, 10.5])
+# np.savetxt("../data2/run1_tlabels",vlines[1:])
+# labels = [Pr.none, Pr.fsm, Pr.contact, Pr.align, Pr.screw, Pr.none, Pr.screw, Pr.none, Pr.screw, Pr.none, Pr.screw, Pr.none, Pr.screw, Pr.none]
+# np.savetxt("../data2/run1_prmlabels",[label.value for label in labels])
 for i in range(7):
 	for vline in vlines[1:-1]:
 		ax[i].axvline(x=vline,color='k',linestyle=':')
