@@ -13,7 +13,7 @@ class Pr(enum.Enum):
     none = 0
     fsm = 1
     contact = 2
-    align = 3
+    alignthreads = 3
     screw = 4
 def sample_primitive(p):
   #p probability distribution of which primitive
@@ -39,10 +39,10 @@ def initializeTransitionMatrix():
     #
     T[Pr.contact.value, Pr.fsm.value] = 0.0
     T[Pr.contact.value, Pr.contact.value] = 0.8 
-    T[Pr.contact.value, Pr.align.value] = 0.2
+    T[Pr.contact.value, Pr.alignthreads.value] = 0.2
     #
-    T[Pr.align.value, Pr.align.value] = 0.8
-    T[Pr.align.value, Pr.screw.value] = 0.1
+    T[Pr.alignthreads.value, Pr.alignthreads.value] = 0.8
+    T[Pr.alignthreads.value, Pr.screw.value] = 0.1
     #
     T[Pr.screw.value, Pr.none.value] = 0.5
     T[Pr.screw.value, Pr.screw.value] = 0.5

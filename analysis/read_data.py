@@ -105,8 +105,8 @@ def read_data1(runfile,forcebias,t0=0,t1=-1,output_fmt='',tpairlist=None,scale=N
                 if (da < -300):
                     ks[j] += 1
                     euler[i][j] += 360
-
         poses[i,0:3,0:3] = r.as_dcm()
+    # euler -= euler[-1,:]
     for i in range(N):
         if i == 0:
             dR = (poses[1,0:3,0:3] - poses[0,0:3,0:3])/(t[1] - t[0])
