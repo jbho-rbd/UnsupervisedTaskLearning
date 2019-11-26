@@ -1,25 +1,36 @@
-from Q4_helper import load_dataset, load_training_dataset, load_testing_dataset
-from dataset_pytorch import BallTrackSet
+"""======================================================================================
+ network.py
+ 
+ Input:   state data labeled with the primitive used at each time step
+ Output:  transition model that determines what is the best next primitive to use 
+            given the current state variables
+ 
+ Jonathan Ho and Elena Galbally, Fall 2019
+======================================================================================"""
+
+""" --------------------------------------------------------------------------------------
+   Include Required Libraries and Files
+-----------------------------------------------------------------------------------------"""
+from dataset_pytorch import PrimitiveTransitionsSet
 import torch
 import torch.nn as nn            # containing various building blocks for your neural networks
 import torch.optim as optim      # implementing various optimization algorithms
 import torch.nn.functional as F  # a lower level (compared to torch.nn) interface
 from torch.utils.data import Dataset, DataLoader
-from resnet import resnet34, resnet18
 from time import time
-from spatialsoftmax import SpatialSoftmax
 import numpy as np
 
+""" --------------------------------------------------------------------------------------
+   Training, Test and Pytorch environment
+-----------------------------------------------------------------------------------------"""
+trainSet = PrimitiveTransitionsSet('sampleTrain.txt')
+trainSet_loader = DataLoader(trainSet, batch_size = 200, shuffle = True, num_workers = 1)
+testSet = PrimitiveTransitionsSet('sampleTest.txt')
+testSet_loader = DataLoader(testSet, batch_size = 100, shuffle = False, num_workers = 1)
 
-images,labels = load_training_dataset('data/Q4A_data/training_set/Q4A_positions_train.npy',
-                                        'data/Q4A_data/training_set')
-Q4A_train_set = BallTrackSet(images,labels)
-Q4A_train_set_loader = DataLoader(Q4A_train_set, batch_size = 200, shuffle = True, num_workers = 1)
-images,labels = load_testing_dataset('data/Q4A_data/testing_set/Q4A_positions_test.npy',
-                                        'data/Q4A_data/testing_set')
-Q4A_test_set = BallTrackSet(images,labels)
-Q4A_test_set_loader = DataLoader(Q4A_test_set, batch_size = 100, shuffle = False, num_workers = 1)
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+""" --------------------------------------------------------------------------------------
+   nn.Module child class: Initializer and Methods
+-----------------------------------------------------------------------------------------"""
 class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
@@ -30,7 +41,7 @@ class Net(nn.Module):
         self.bn1 = nn.BatchNorm2d(16)
         self.max_pool = nn.MaxPool2d(3)
         self.conv2 = nn.Conv2d(16, 16, kernel_size=3, stride=1)
-        self.spatialsoftmax1 = SpatialSoftmax(80, 106, 16, temperature = 1)
+        # self.spatialsoftmax1 = SpatialSoftmax(80, 106, 16, temperature = 1)
         
         # Linear(in_features, out_features, bias=True)
         
@@ -54,11 +65,22 @@ class Net(nn.Module):
         x = self.fc(x)
         return x
 
+""" --------------------------------------------------------------------------------------
+   GPU, Network Instance and Hyperparameters
+-----------------------------------------------------------------------------------------"""
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu") #check for GPU
 model = Net().to(device)
-# model = resnet18(num_classes=3).to(device)
-#learning rate zero
-# optimizer = optim.SGD(model.parameters(), lr=0.000, momentum=0.9)
 optimizer = optim.Adam(model.parameters(), lr=0.01, betas=(0.9, 0.999), eps=1e-08, weight_decay=0, amsgrad=False)
+
+""" --------------------------------------------------------------------------------------
+   Network Related Utility Functions
+   -----------------------
+   * save_checkpoint
+   * load_checkpoint
+   * test
+   * train
+------------------------------------------------------------------------------------------- """
+
 def save_checkpoint(checkpoint_path, model, optimizer):
     # state_dict: a Python dictionary object that:
     # - for a model, maps each layer to its parameter tensor;
@@ -80,22 +102,23 @@ def test():
     test_loss = 0
     correct = 0
     with torch.no_grad():
-        for data, target in Q4A_test_set_loader:
+        for data, target in testSet_loader:   
             data, target = data.to(device), target.to(device)
             output = model(data)
             test_loss += F.mse_loss(output, target, size_average=False).item() # sum up batch loss
 
-    test_loss /= len(Q4A_test_set_loader.dataset)
+    test_loss /= len(testSet_loader.dataset)
     print('\nTest set: Average loss: {:.4f} \n'.format(
         test_loss))
     return test_loss
+
 def train(epoch, save_interval = 10, log_interval=1):
     model.train()  # set training mode
     iteration = 0
     traindat = np.zeros((epoch, 3)) 
     for ep in range(epoch):
         start = time()
-        for batch_idx, (data, target) in enumerate(Q4A_train_set_loader):
+        for batch_idx, (data, target) in enumerate(trainSet_loader):
             # bring data to the computing device, e.g. GPU
             data, target = data.to(device), target.to(device)
 
@@ -113,8 +136,8 @@ def train(epoch, save_interval = 10, log_interval=1):
             
             if iteration % log_interval == 0:
                 print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                    ep, batch_idx * len(data), len(Q4A_train_set_loader.dataset),
-                    100. * batch_idx / len(Q4A_train_set_loader), loss.item()))
+                    ep, batch_idx * len(data), len(trainSet_loader.dataset),
+                    100. * batch_idx / len(trainSet_loader), loss.item()))
             if iteration % save_interval == 0 and iteration > 0:
                 save_checkpoint('ballnet-%i.pth' % iteration, model, optimizer)
             iteration += 1
@@ -127,6 +150,9 @@ def train(epoch, save_interval = 10, log_interval=1):
         np.savetxt("train4.dat", traindat)
     save_checkpoint('ballnet-%i.pth' % iteration, model, optimizer)
 
+""" --------------------------------------------------------------------------------------
+   Main
+-----------------------------------------------------------------------------------------"""
 if __name__ == "__main__":
     load_checkpoint('ballnet-1070.pth', model, optimizer)
     train(500)
