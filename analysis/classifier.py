@@ -28,77 +28,30 @@ def sample_primitive(p):
 
 def initializeTransitionMatrix():
     #transition matrix
-    T = np.zeros((5,5))
+    T = np.ones((5,5))
     #
-    T[Pr.none.value, Pr.none.value] = 0.95
-    T[Pr.none.value, Pr.fsm.value] = 0.05
+    T[Pr.none.value, Pr.none.value] = 10
+    # T[Pr.none.value, Pr.fsm.value] = 0.05
     #
-    T[Pr.fsm.value, Pr.fsm.value] = 0.9
-    T[Pr.fsm.value, Pr.none.value] = 0.05
-    T[Pr.fsm.value, Pr.contact.value] = 0.05
+    T[Pr.fsm.value, Pr.fsm.value] = 10
+    # T[Pr.fsm.value, Pr.none.value] = 0.05
+    # T[Pr.fsm.value, Pr.contact.value] = 0.05
     #
-    T[Pr.contact.value, Pr.fsm.value] = 0.0
-    T[Pr.contact.value, Pr.contact.value] = 0.8 
-    T[Pr.contact.value, Pr.alignthreads.value] = 0.2
+    # T[Pr.contact.value, Pr.fsm.value] = 0.0
+    T[Pr.contact.value, Pr.contact.value] = 8
+    # T[Pr.contact.value, Pr.alignthreads.value] = 0.2
     #
-    T[Pr.alignthreads.value, Pr.alignthreads.value] = 0.8
-    T[Pr.alignthreads.value, Pr.screw.value] = 0.1
+    T[Pr.alignthreads.value, Pr.alignthreads.value] = 8
+    # T[Pr.alignthreads.value, Pr.screw.value] = 0.1
     #
-    T[Pr.screw.value, Pr.none.value] = 0.5
-    T[Pr.screw.value, Pr.screw.value] = 0.5
+    # T[Pr.screw.value, Pr.none.value] = 0.5
+    T[Pr.screw.value, Pr.screw.value] = 10
     T = np.transpose(T.transpose() / np.sum(T,axis=1))
     return T
 def forward_model_primitive(s_value, T):
     #s is a primitve idx
     #T is the transition matrix
     return sample_primitive(T[s_value])
-def likelihood(x, mean, stdev):
-    return 2*scipy.stats.norm.cdf(-abs((x- mean)/stdev))
-def observation_tests(x):
-    dims = range(3)
-    ps = np.zeros(6)
-    #test 0 - are the velocities zero
-    p = 1
-    for i in dims:
-      p = p*likelihood(x.vel[i],0.0, 0.2)
-    ps[0] = p
-    #test 1 - are the forces zero
-    p = 1
-    for i in dims:
-      p = p*likelihood(x.F[i],0.0, 2.0)
-    ps[1] = p
-    #test 2 - are the moments zero
-    p = 1
-    for i in dims:
-      p = p*likelihood(x.M[i],0.0, 0.1)
-    ps[2] = p
-    #test 3 - are the angular velocities zero
-    p = 1
-    for i in dims:
-      p = p*likelihood(x.ang_vel[i],0.0, 1)
-    ps[3] = p
-    #test 4 - is omega_z zero
-    p = likelihood(x.ang_vel[2],0.0, 0.3)
-    ps[4] = p
-    #test 5 - is M_z zero
-    p = likelihood(x.M[2],0.0, 0.01)
-    ps[5] = p
-    return ps
-def observation_model(x):
-    #s the underlying primitive state
-    #x the observation: velocities positions etc...
-    #returns the probability of observing x, given s, for n different s
-    p = observation_tests(x)
-    ps = np.array([p[0]*p[2],
-                  (1 - p[0])*p[2],
-                  (1 - p[0])*(1 - p[2]),
-                  p[0]*(1 - p[2])*p[4],
-                  p[0]*(1 - p[2])*(1 - p[4])])
-    return ps
-
-def exp_coords_6D_from_4x4_pose(pose):
-    temp = np.real(scipy.linalg.logm(pose))
-    return np.array([temp[0, 3], temp[1, 3], temp[2, 3], temp[2,1], temp[0, 2], temp[1,0]])
 
 def particle_filter(observations,T_forward):
     """ 

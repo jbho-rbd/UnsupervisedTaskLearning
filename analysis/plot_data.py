@@ -5,11 +5,18 @@ from scipy.spatial.transform import Rotation as R
 from matplotlib import rc
 from read_data import read_data0, read_data1
 from classifier import Pr
-def plot_file(file,tlabelfile,prlabelfile):
+import sys
+def plot_file(file,tlabelfile=None,prlabelfile=None):
     #y axis becomes z
     #z axis becomes x
     #x axis becomes y
-    # t, p1, euler, omegas, F, M = read_data0('../data/run1.dat', '../data/bias.force')
+    """
+    Inputs: 
+        file: filename of raw data collected using the redis logger
+        tlabelfile: text file with the endtime of each primitive
+        prlabelfile: text file with list of primitives as an integer 
+
+    """    
     t, p1, vels, euler, omegas, F, M = read_data1(file, '../data2/bias.force')#,t0=0,t1=5.0)
     """
     fig = plt.figure()
@@ -60,15 +67,15 @@ def plot_file(file,tlabelfile,prlabelfile):
     ax[5].plot(t,M[:,2],'b',label='$\\tau_z$')
     ax[5].set_ylabel('Nm')
     ax[5].legend(loc='upper right')
-    vlines = np.genfromtxt(tlabelfile,dtype=float)
-    vlines = np.insert(vlines,0,0.0)
-    labels=[Pr(int(idx)) for idx in np.genfromtxt(prlabelfile)]
+    plotLabels=tlabelfile is not None and prlabelfile is not None
     # vlines=np.array([0.0, 1.08, 3.27,4.2,5.5,6.72,6.9,7.44, 7.6, 8.02, 8.21, 8.68, 8.98, 9.97, 10.5])
     # np.savetxt("../data2/run1_tlabels",vlines[1:])
     # labels = [Pr.none, Pr.fsm, Pr.contact, Pr.align, Pr.screw, Pr.none, Pr.screw, Pr.none, Pr.screw, Pr.none, Pr.screw, Pr.none, Pr.screw, Pr.none]
     # np.savetxt("../data2/run1_prmlabels",[label.value for label in labels])
-    plotLabels=False
     if plotLabels:
+        vlines = np.genfromtxt(tlabelfile,dtype=float)
+        vlines = np.insert(vlines,0,0.0)
+        labels=[Pr(int(idx)) for idx in np.genfromtxt(prlabelfile)]
         for i in range(7):
             for vline in vlines[1:-1]:
                 ax[i].axvline(x=vline,color='k',linestyle=':')
@@ -84,25 +91,38 @@ def plot_file(file,tlabelfile,prlabelfile):
             secaxy.set_ylabel(labels[i],rotation=0,labelpad=10)
             secaxy.get_yaxis().set_ticks([])
         f.align_ylabels(ax)
-def getlabels(likelihoodfile, tlabelFile = None, prm_labelFile = None):
+def getlabels(likelihoodfile, tlabelFile = None, prlabelFile = None):
+    """
+    Inputs:
+        likelihoodfile: filename of a text data file that contains likelihoods in the following format:
+        # time p[s0] p[s1] p[s2] p[s3] p[s4] ...
+        where s0, s1, are the different primitives
+
+    Outputs:
+        tlabelFile: a file of the times t at whjich the primitive changes (includes the t_final)
+        prlabelFile: a file of the list of primitives
+
+    these two outputs can be fed to plot_file
+
+    """
     dat = np.genfromtxt(likelihoodfile)
     t = dat[:,0]
     likelihoods = dat[:,1:]
-    prs = np.argmax(likelihoods,axis=1) - 1
+    prs = np.argmax(likelihoods,axis=1)
     tlist = []
     prlist = [prs[0]]
     for i in range(len(t)-1):
         if prs[i+1] != prs[i]:
-            prlist.append(pr[i+1])
+            prlist.append(prs[i+1])
             tlist.append(t[i+1])
     tlist.append(t[-1])
     np.savetxt(tlabelFile,tlist)
-    np.savetxt(prm_labelFile,prlist)
+    np.savetxt(prlabelFile,prlist)
     return tlist, prlist
 
-
-
-
-plot_file('../data2/run1',"../data2/run1_tlabels","../data2/run1_prmlabels",)
-# plot_file('../data2/run3')
-plt.show()
+if __name__ == "__main":
+    run_number=int(sys.argv[1])
+    getlabels("results/run{0:d}_likelihoods".format(run_number), tlabelFile="results/run{0:d}_tlabels".format(run_number), prlabelFile="results/run{0:d}_prmlabels".format(run_number))
+    plot_file('../data2/run{0:d}'.format(run_number),tlabelfile="results/run{0:d}_tlabels".format(run_number),prlabelfile="results/run{0:d}_prmlabels".format(run_number))
+    # plot_file('../data2/run1'.format(run_number),tlabelfile="../data2/run1_tlabels".format(run_number),prlabelfile="../data2/run1_prmlabels".format(run_number))
+    plt.show()
