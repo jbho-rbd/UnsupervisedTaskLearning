@@ -117,7 +117,7 @@ def train(epoch, save_interval = 10, log_interval=1):
                     ep, batch_idx * len(data), len(trainSet_loader.dataset),
                     100. * batch_idx / len(trainSet_loader), loss.item()))
             if iteration % save_interval == 0 and iteration > 0:
-                save_checkpoint('ballnet-%i.pth' % iteration, model, optimizer)
+                save_checkpoint('trainingData/transitionModel-%i.pth' % iteration, model, optimizer)
             iteration += 1
             
         end = time()
@@ -125,12 +125,12 @@ def train(epoch, save_interval = 10, log_interval=1):
         traindat[ep,0] = ep
         traindat[ep,1] = loss.item()
         traindat[ep,2] = test() # evaluate at the end of epoch
-        np.savetxt("train4.dat", traindat)
-    save_checkpoint('ballnet-%i.pth' % iteration, model, optimizer)
+        np.savetxt("trainingData/train.dat", traindat)
+    save_checkpoint('trainingData/transitionModel-%i.pth' % iteration, model, optimizer)
 
 """ --------------------------------------------------------------------------------------
    Main
 -----------------------------------------------------------------------------------------"""
 if __name__ == "__main__":   
     # load_checkpoint('ballnet-1070.pth', model, optimizer)
-    train(2)
+    train(20)
