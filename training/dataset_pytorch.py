@@ -3,32 +3,43 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 
 
-class BallTrackSet(Dataset):
+class PrimitiveTransitionsSet(Dataset):
     """ 
-    A customized dataloader for our ball tracking dataset 
+    Customized dataloader for our primitive transitions dataset 
 
     """
-    def __init__(self, images, labels):
+    def __init__(self, data):
         """ Initialize the dataloader. We transform the np arrays 
-        to torch tensors and also floats 
+        to torch tensors and also floats.
+
         Input:
-          images: (N,480,640,3) numpy array of the images
-          labels: (N,3) numpy array of the ball location labels
+          data: txt file with N rows of 24 elements each: state variables and current primitive probabilities
+             (1) state variables (19):
+                - time 
+                - pos_x pos_y pos_z ori_x ori_y ori_z 
+                - vel_x vel_y vel_z angvel_x angvel_y angvel_z 
+                - Fx Fy Fz Mx My Mz 
+             (2) labels (5): Pr0 Pr1 Pr2 Pr3 Pr4 (current primitive probabilities)
         """
-
-
-        total_images = images.transpose((0,3,1,2))
-        total_images /= 255.0 
-        self.total_images = torch.from_numpy(total_images).float()
-        self.total_labels = torch.from_numpy(labels).float()
+        dataArray = np.loadtxt('data') # dataArray is an (N,24) numpy array
         
-        self.len = total_images.shape[0]
+        numVars = dataArray.shape[1]
+        numDataVectors = dataArray.shape[0]
+        numPrimitives = 5
+        numStateVars = numVars - numPrimitives
+        
+        states = dataArray(:,0:numStateVars)
+        labels = dataArray(:,numStateVars:)
+        
+        self.states = torch.from_numpy(states).float()
+        self.labels = torch.from_numpy(labels).float()  
+        self.len = numDataVectors
     
     def __getitem__(self, index):
         """ Get a sample from the dataset
         """
-        image = self.total_images[index]
-        label = self.total_labels[index]
+        image = self.states[index]
+        label = self.labels[index]
 
         # return image and label
         return image, label
