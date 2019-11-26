@@ -21,7 +21,7 @@ from time import time
 import numpy as np
 
 """ --------------------------------------------------------------------------------------
-   Training, Test and Pytorch environment
+   Training, Test Sets and Pytorch environment
 -----------------------------------------------------------------------------------------"""
 trainSet = PrimitiveTransitionsSet('sampleTrain.txt')
 trainSet_loader = DataLoader(trainSet, batch_size = 200, shuffle = True, num_workers = 1)
@@ -32,37 +32,13 @@ testSet_loader = DataLoader(testSet, batch_size = 100, shuffle = False, num_work
    nn.Module child class: Initializer and Methods
 -----------------------------------------------------------------------------------------"""
 class Net(nn.Module):
-    def __init__(self):
+    def __init__(self): # Logistic Regression
         super(Net, self).__init__()
-        
-        # Conv2d(in_channels, out_channels, kernel_size, stride=1, padding=0,
-        #        dilation=1, groups=1, bias=True, padding_mode='zeros')
-        self.conv1 = nn.Conv2d(3, 16, kernel_size=7, stride=2, padding=3)
-        self.bn1 = nn.BatchNorm2d(16)
-        self.max_pool = nn.MaxPool2d(3)
-        self.conv2 = nn.Conv2d(16, 16, kernel_size=3, stride=1)
-        # self.spatialsoftmax1 = SpatialSoftmax(80, 106, 16, temperature = 1)
-        
-        # Linear(in_features, out_features, bias=True)
-        
-        # MaxPool2d(kernel_size, stride=None, padding=0, dilation=1, return_indices=False, ceil_mode=False)
-        # ReLU(inplace=False)
-        self.relu = nn.ReLU(inplace=True)
-        self.fc = nn.Linear(32, 3)
-
+        self.linear = torch.nn.Linear(19, 5) #input, output sizes
     def forward(self, x):
-        x = self.conv1(x)
-        x = self.bn1(x)
-        x = self.relu(x)
-        x = self.max_pool(x)
-        # for i in range(3):
-        #     x = self.conv2(x)
-        #     x = self.bn1(x)
         # print(x.shape)
-        x = self.spatialsoftmax1(x)
-        # print(x.shape)
-        # print(x.shape)
-        x = self.fc(x)
+        x = self.linear(x)
+        x = torch.sigmoid(x)
         return x
 
 """ --------------------------------------------------------------------------------------
@@ -70,7 +46,10 @@ class Net(nn.Module):
 -----------------------------------------------------------------------------------------"""
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu") #check for GPU
 model = Net().to(device)
+lossCriterion = torch.nn.BCELoss(size_average=True)
+# optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
 optimizer = optim.Adam(model.parameters(), lr=0.01, betas=(0.9, 0.999), eps=1e-08, weight_decay=0, amsgrad=False)
+# optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
 
 """ --------------------------------------------------------------------------------------
    Network Related Utility Functions
@@ -80,7 +59,6 @@ optimizer = optim.Adam(model.parameters(), lr=0.01, betas=(0.9, 0.999), eps=1e-0
    * test
    * train
 ------------------------------------------------------------------------------------------- """
-
 def save_checkpoint(checkpoint_path, model, optimizer):
     # state_dict: a Python dictionary object that:
     # - for a model, maps each layer to its parameter tensor;
@@ -105,7 +83,7 @@ def test():
         for data, target in testSet_loader:   
             data, target = data.to(device), target.to(device)
             output = model(data)
-            test_loss += F.mse_loss(output, target, size_average=False).item() # sum up batch loss
+            test_loss += lossCriterion(output, target).item() # sum up batch loss
 
     test_loss /= len(testSet_loader.dataset)
     print('\nTest set: Average loss: {:.4f} \n'.format(
@@ -125,7 +103,7 @@ def train(epoch, save_interval = 10, log_interval=1):
             # forward pass
             output = model(data)
             # compute loss: negative log-likelihood
-            loss = F.mse_loss(output, target)
+            loss = lossCriterion(output, target)
             # backward pass
             # clear the gradients of all tensors being optimized.
             optimizer.zero_grad()
@@ -153,6 +131,6 @@ def train(epoch, save_interval = 10, log_interval=1):
 """ --------------------------------------------------------------------------------------
    Main
 -----------------------------------------------------------------------------------------"""
-if __name__ == "__main__":
-    load_checkpoint('ballnet-1070.pth', model, optimizer)
-    train(500)
+if __name__ == "__main__":   
+    # load_checkpoint('ballnet-1070.pth', model, optimizer)
+    train(2)

@@ -20,15 +20,15 @@ class PrimitiveTransitionsSet(Dataset):
                 - Fx Fy Fz Mx My Mz 
              (2) labels (5): Pr0 Pr1 Pr2 Pr3 Pr4 (current primitive probabilities)
         """
-        dataArray = np.loadtxt('data') # dataArray is an (N,24) numpy array
+        dataArray = np.loadtxt(data) # dataArray is an (N,24) numpy array
         
         numVars = dataArray.shape[1]
         numDataVectors = dataArray.shape[0]
         numPrimitives = 5
         numStateVars = numVars - numPrimitives
         
-        states = dataArray(:,0:numStateVars)
-        labels = dataArray(:,numStateVars:)
+        states = dataArray[:,0:numStateVars]
+        labels = dataArray[:,numStateVars:]
         
         self.states = torch.from_numpy(states).float()
         self.labels = torch.from_numpy(labels).float()  
