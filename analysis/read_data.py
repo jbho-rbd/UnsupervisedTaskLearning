@@ -55,7 +55,7 @@ def read_data0(runfile,forcebias):
         omegas[i,2] = skew_angularvelocity[1,0]
     omegas[-1] = omegas[-2]
     return t, p1, euler, omegas, F, M
-def read_data1(runfile,forcebias,t0=0,t1=-1,output_fmt='',tpairlist=None,scale=None):
+def read_data1(runfile,forcebias,t0=0,t1=-1,output_fmt='',tpairlist=None):
     dat=np.genfromtxt(runfile,skip_header=2)
     #collect final poses before truncating
     r_final_inv = R.from_quat(dat[-1,[1,3,4,2]]).inv()
@@ -121,16 +121,17 @@ def read_data1(runfile,forcebias,t0=0,t1=-1,output_fmt='',tpairlist=None,scale=N
         omegas[i,0] = skew_angularvelocity[2,1]
         omegas[i,1] = skew_angularvelocity[0,2]
         omegas[i,2] = skew_angularvelocity[1,0]
+        k = 10.0
+        omegas[i,2] = k/(k + omegas[i,2]*omegas[i,2])
     if output_fmt == 'obs':#output as list of observations
         obs_list = []
         for i in range(N):
             obs_list.append(Obs(p1[i],q1[i],vels[i], omegas[i], F[i], M[i]))
         return t, obs_list
     elif output_fmt == 'array':
-        if scale is None:
-            return t, np.hstack((p1,np.pi/180.0*euler[:,[2,1,0]],vels,omegas,F,M))
-        else:
-            return t, np.tile(scale,(N,1))*np.hstack((p1,np.pi/180.0*euler[:,[2,1,0]],vels,omegas,F,M))
+        temp = np.hstack((p1,np.pi/180.0*euler[:,[2,1,0]],vels,omegas,F,M))
+        # k = 0.2
+        return t, temp
     else:
         return t, p1, vels, euler, omegas, F, M
 

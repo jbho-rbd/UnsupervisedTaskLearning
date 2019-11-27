@@ -60,6 +60,7 @@ class GMM:
         self.epoch = 0;
     def initialize_clusters(self, n_clusters, constraints=None, means0=None, cov0=None):#each cluster is a primitive
         self.clusters = []
+        self.n_clusters = n_clusters
         idx = np.arange(X.shape[0])
         
         # We could use the KMeans centroids to initialise the GMM
@@ -94,6 +95,7 @@ class GMM:
         return self.clusters
     def initialize_clusters_from_savedfiles(self, n_clusters, meanfile,covfile,pifile, constraints=None):#each cluster is a primitive
         self.clusters = []
+        self.n_clusters = n_clusters
         mu_k = np.load(meanfile)
         cov_k = np.load(covfile)
         pi_k = np.load(pifile)
@@ -106,7 +108,7 @@ class GMM:
             self.clusters.append({
                 'pi_k': pi_k[i],
                 'mu_k': mu_k[i],
-                'cov_k': 10*cov_k[i]
+                'cov_k': 1.5*cov_k[i]
             })
             if self.constraints:
                 self.clusters[i]['constraint_k'] = constraints[i]
@@ -119,9 +121,9 @@ class GMM:
         if plotFlag:
             f,ax = plt.subplots(1)
         if T_matrix is not None:
-            self.pf_expectation(T_matrix)
+            self.apf_expectation(T_matrix)
         elif T_matrix_standard is not None:
-            self.standard_expectation(T_matrix)
+            self.standard_expectation(T_matrix_standard)
         else:
             self.standard_expectation()
         if plotFlag:
@@ -134,7 +136,7 @@ class GMM:
             plt.show()
         self.epoch += 1
         if saveFile is not None:
-            likelihoods = np.zeros((len(t), len(self.clusters) + 1))
+            likelihoods = np.zeros((len(t), self.n_clusters + 1))
             likelihoods[:,0] = t
             for kk, cluster in enumerate(self.clusters):
                 likelihoods[:,kk+1] = cluster['gamma_nk']
@@ -142,32 +144,30 @@ class GMM:
     def standard_expectation(self,T_matrix=None):
         totals = np.zeros(self.X.shape[0], dtype=np.float64)
         if T_matrix is not None:
-            likelihoods1 = np.zeros((len(self.clusters,self.X.shape[0])))#first index time, second index different clusters
+            for kk, cluster in enumerate(self.clusters):
+                self.likelihoods[:,kk] = gaussian(self.X, cluster['mu_k'], cluster['cov_k']).astype(np.float64)
+            likelihoods1 = np.zeros((self.X.shape[0],self.n_clusters))#first index time, second index different clusters
             # likelihoods1[1:] = self.likelihoods[:-1].dot(T_matrix)
             # likelihoods1[0,:] = self.likelihoods[0,:]
-            likelihoods1[0,:] = self.likelihoods[0,:]
             likelihoods1[-1,:] = self.likelihoods[-1,:]
-            for t in range(1,len(self.X.shape[0])-1):
-                for s in range(len(self.clusters)):
-                    for sbefore in range(len(self.clusters)):
-                        for safter in range(len(self.clusters)):
-                            likelihoods1[t,s] += T_matrix[sbefore,s]*T_matrix[s,safter]
-                likelihoods1[t,:] /= np.sum(likelihoods1[t,:])
+            for t in range(self.X.shape[0]-1):
+                for s in range(self.n_clusters):
+                    for safter in range(self.n_clusters):
+                        likelihoods1[t,s] += (1
+                            *T_matrix[s,safter]*self.likelihoods[t+1,safter])
+                # likelihoods1[t,:] /= np.sum(likelihoods1[t,:])
         for kk, cluster in enumerate(self.clusters):
-            pi_k = cluster['pi_k']
-            mu_k = cluster['mu_k']
-            cov_k = cluster['cov_k']
             if T_matrix is not None:
-                gamma_nk = likelihoods1[:,kk]*gaussian(self.X, mu_k, cov_k).astype(np.float64)
+                gamma_nk = likelihoods1[:,kk]*self.likelihoods[:,kk]
             else:
-                gamma_nk = (pi_k * gaussian(self.X, mu_k, cov_k)).astype(np.float64)
+                gamma_nk = (cluster['pi_k'] * gaussian(self.X, cluster['mu_k'], cluster['cov_k'])).astype(np.float64)
             totals += gamma_nk
             cluster['gamma_nk'] = gamma_nk 
         self.totals = totals
         for kk, cluster in enumerate(self.clusters):
             for i in range(len(totals)):
                 if totals[i] == 0.0:
-                    cluster['gamma_nk'][i] = 1 / len(self.clusters)
+                    cluster['gamma_nk'][i] = 1.0 / self.n_clusters
                     totals[i] = 1e-300
                 else:
                     cluster['gamma_nk'][i] /= totals[i];
@@ -181,7 +181,7 @@ class GMM:
           p_primitives (N x n_primtives probability array)
         """
         N = self.X.shape[0]
-        likelihoods = np.zeros((self.X.shape[0], len(self.clusters)))
+        likelihoods = np.zeros((self.X.shape[0], self.n_clusters))
         self.totals = np.zeros(self.X.shape[0])
         for kk, cluster in enumerate(self.clusters):
             likelihoods[0,kk] = (cluster['pi_k'] * gaussian(self.X[0], cluster['mu_k'], cluster['cov_k'])).astype(np.float64)
@@ -193,7 +193,7 @@ class GMM:
         for i in range(N_particles):
           s[i,0] = sample_primitive(likelihoods[0])
         weights = np.ones(N_particles)
-        ps = np.zeros(len(self.clusters))
+        ps = np.zeros(self.n_clusters)
         for t in range(N-1):
           for kk, cluster in enumerate(self.clusters):
             ps[kk] = (cluster['pi_k'] * gaussian(self.X[t+1], cluster['mu_k'], cluster['cov_k'])).astype(np.float64)
@@ -215,7 +215,7 @@ class GMM:
             n_particles_allocated = n
           #count primtivies
           temp = collections.Counter(s[:,t+1])
-          for kk in range(len(self.clusters)):
+          for kk in range(self.n_clusters):
               likelihoods[t+1, kk] = temp[kk]/N_particles
           self.totals[t+1] = np.sum(ps)
         for kk, cluster in enumerate(self.clusters):
@@ -230,7 +230,7 @@ class GMM:
           p_primitives (N x n_primtives probability array)
         """
         N = self.X.shape[0]
-        likelihoods = np.zeros((self.X.shape[0], len(self.clusters)))
+        likelihoods = np.zeros((self.X.shape[0], self.n_clusters))
         self.totals = np.zeros(self.X.shape[0])
         for kk, cluster in enumerate(self.clusters):
             likelihoods[0,kk] = (cluster['pi_k'] * gaussian(self.X[0], cluster['mu_k'], cluster['cov_k'])).astype(np.float64)
@@ -242,12 +242,15 @@ class GMM:
         for i in range(N_particles):
           s[i,0] = sample_primitive(likelihoods[0])
         weights = np.ones(N_particles)
-        ps = np.zeros(len(self.clusters))
+        ps = np.zeros(self.n_clusters)
+        p_x1_for_s1 = np.zeros(self.n_clusters)
         for t in range(N-1):
+          for s1, cluster1 in enumerate(self.clusters):
+            p_x1_for_s1[s1] = (gaussian(self.X[t+1], cluster1['mu_k'], cluster1['cov_k'])).astype(np.float64)
           for s0, cluster0 in enumerate(self.clusters):
             ps[s0] = 0.0
             for s1, cluster1 in enumerate(self.clusters):
-                ps[s0] += T_forward[s0,s1]*(gaussian(self.X[t+1], cluster1['mu_k'], cluster1['cov_k'])).astype(np.float64)
+                ps[s0] += T_forward[s0,s1]*p_x1_for_s1[s1]
           # print("t: {0:f}, ps".format(t), ps)
           for i in range(N_particles):
             weights[i] = ps[s[i,t]]
@@ -272,7 +275,7 @@ class GMM:
           self.totals[t+1] = np.sum(ps)
           #count primtivies
           temp = collections.Counter(s[:,t])
-          for kk in range(len(self.clusters)):
+          for kk in range(self.n_clusters):
               likelihoods[t, kk] = temp[kk]/N_particles
         self.totals[0] = self.totals[1]
         temp = collections.Counter(s[:,-1])
@@ -297,7 +300,12 @@ class GMM:
             for j in range(self.X.shape[0]):
                 diff = (self.X[j] - mu_k).reshape(-1, 1)
                 cov_k += gamma_nk[j] * np.dot(diff, diff.T)
-                
+            # if self.constraints:
+            #     for constraint in cluster['constraint_k']:
+            #         if constraint[0] > -1: #constraint[0] = -1 is used for inactive constraints
+            #             if constraints[2] > -1: # covar constraint active:
+
+
             cov_k /= N_k
             # print("Cluster[{0:d}] cond: {1:e}, N_k: {2:e}".format(kk,np.linalg.cond(cov_k), N_k))
             
@@ -308,9 +316,9 @@ class GMM:
         sample_likelihoods = np.log(self.totals)
         return np.sum(sample_likelihoods)
     def save(self, meanfile, covarfile, pifile):
-        mu0 = np.zeros((len(self.clusters),self.X.shape[1]))
-        cov0 = np.zeros((len(self.clusters),self.X.shape[1],self.X.shape[1]))
-        pi0 = np.zeros(len(self.clusters))
+        mu0 = np.zeros((self.n_clusters,self.X.shape[1]))
+        cov0 = np.zeros((self.n_clusters,self.X.shape[1],self.X.shape[1]))
+        pi0 = np.zeros(self.n_clusters)
         for kk, cluster in enumerate(self.clusters):
             mu0[kk] = cluster['mu_k']
             cov0[kk] = cluster['cov_k']
@@ -338,7 +346,10 @@ if __name__ == "__main__":
         'M_x' : 15,
         'M_y' : 16,
         'M_z' : 17}
-    subset = np.arange(6, 18)
+        # 'ang_vel_z_transform' : 1
+    # subset = np.hstack((np.arange(3, 5), np.arange(6,18)))
+    subset = np.hstack((np.arange(6,18)))
+    print(subset)
     for key, val in var_idxs.items():
         found_idxs = np.where(subset==val)[0]
         if found_idxs.size > 0:
@@ -347,8 +358,6 @@ if __name__ == "__main__":
             var_idxs[key] = -1
     n_primitives = 5
     N = len(subset)
-    # scaling = 1/np.sqrt(np.genfromtxt("scaling_cov_diag.dat"))
-    scaling = np.ones(18)
     # By manually labelling the data extract some mean and cov data to begin with
     mu0 = np.zeros((n_primitives,N))
     cov0 = np.zeros((n_primitives,N,N))
@@ -362,7 +371,7 @@ if __name__ == "__main__":
                 tpairs.append([tlabels[i],tlabels[i+1]])
         print("Primitive: {0:s}".format(Pr(prim)))
         print(tpairs)
-        time, X = read_data1('../data2/run1', '../data2/bias.force',output_fmt='array',tpairlist=tpairs,scale=scaling)
+        time, X = read_data1('../data2/run1', '../data2/bias.force',output_fmt='array',tpairlist=tpairs)
         #each row of X is an observation
         #each column of X is a variable
         mu0[prim.value] = np.mean(X[:,subset],axis=0)
@@ -372,7 +381,7 @@ if __name__ == "__main__":
         # print(np.linalg.cond(cov0[prim.value]))
         # print("{0:e}".format(np.linalg.cond(cov0[prim.value])))
     #TRAINING
-    time,X = read_data1('../data2/run1', '../data2/bias.force',output_fmt='array',t0=0.0, t1 = 10.5,scale=scaling)
+    time,X = read_data1('../data2/run1', '../data2/bias.force',output_fmt='array',t0=0.0, t1 = 10.5)
     # np.savetxt("scaling_cov_diag.dat",np.diag(np.cov(X,rowvar=False)))
     #set up my Constraints
     myConstraints=[()]*n_primitives
@@ -382,7 +391,7 @@ if __name__ == "__main__":
         (var_idxs['vel_z'], 0.0),
         (var_idxs['ang_vel_x'], 0.0),
         (var_idxs['ang_vel_y'], 0.0),
-        (var_idxs['ang_vel_z'], 0.0),
+        (var_idxs['ang_vel_z'], 1.0),
         (var_idxs['F_x'], 0.0),
         (var_idxs['F_y'], 0.0),
         (var_idxs['F_z'], 0.0),
@@ -401,6 +410,8 @@ if __name__ == "__main__":
         (var_idxs['vel_z'], 0.0)
     )
     myConstraints[Pr.screw.value] = (
+        (var_idxs['ori_x'],0.0),
+        (var_idxs['ori_y'],0.0),
         (var_idxs['vel_x'], 0.0),
         (var_idxs['vel_y'], 0.0),
         (var_idxs['vel_z'], 0.0),
@@ -413,46 +424,65 @@ if __name__ == "__main__":
         (var_idxs['vel_z'], 0.0),
         (var_idxs['ang_vel_x'], 0.0),
         (var_idxs['ang_vel_y'], 0.0),
-        (var_idxs['ang_vel_z'], 0.0)
+        (var_idxs['ang_vel_z'], 1.0)
     )
     myGMM = GMM(X[:,subset])
-    myGMM.initialize_clusters(n_primitives, means0=mu0, cov0=cov0)
-    # myGMM.initialize_clusters(n_primitives, constraints=myConstraints,means0=mu0, cov0=cov0)
+    # myGMM.initialize_clusters(n_primitives, means0=mu0, cov0=cov0)
     transition = initializeTransitionMatrix()
-    for i in range(50):
-        if i % 10 == 0:#i % 100 == 0:
-            myGMM.expectation_step(t=time,saveFile="results/run1_likelihoods"
-                ,T_matrix_standard=transition
-                )
-        else:
-            myGMM.expectation_step(
-                T_matrix_standard=transition
-                )
-        myGMM.maximization_step()
-        print("it: {0:d} likelihood function {1:e}".format(i, myGMM.get_likelihood()))
-    myGMM.save('references/mean', 'references/covar', 'references/pi')
+    if True:
+        myGMM.initialize_clusters(n_primitives, means0=mu0, cov0=cov0,
+            constraints=myConstraints)
+        for i in range(10):
+            if i == 9:#i % 100 == 0:
+                myGMM.expectation_step(t=time,saveFile="results/run1_likelihoods"
+                    ,T_matrix=transition
+                    )
+            else:
+                myGMM.expectation_step(
+                    T_matrix=transition
+                    )
+            myGMM.maximization_step()
+            print("it: {0:d} likelihood function {1:e}".format(i, myGMM.get_likelihood()))
+        myGMM.save('references/mean', 'references/covar', 'references/pi')
+        means = np.load('references/mean.npy')
+        covar = np.load('references/covar.npy')
+        for prim in [Pr.none, Pr.fsm, Pr.contact, Pr.alignthreads, Pr.screw]:
+            print("Means: ", prim)
+            for var in ('ang_vel_z', 'F_z'):
+                print("{0:s}: mu: {1:f} stdev ".format(var,means[prim.value][var_idxs[var]]),
+                    np.sqrt(covar[prim.value,var_idxs[var],var_idxs[var]])) 
+
     #TESTING
     if len(sys.argv) < 2:
         exit()
     run_number=int(sys.argv[1])
     testfile='../data2/run{0:d}'.format(run_number)
     print("--------testing: ",testfile, "-----------")
-    time,X = read_data1(testfile, '../data2/bias.force',output_fmt='array',t0=0.0, t1 = 10.5,scale=scaling)
+    time,X = read_data1(testfile, '../data2/bias.force',output_fmt='array')
     mytestGMM = GMM(X[:,subset])
-    mytestGMM.initialize_clusters_from_savedfiles(n_primitives, 'references/mean.npy', 'references/covar.npy', 'references/pi.npy')
+    mytestGMM.initialize_clusters_from_savedfiles(n_primitives, 'references/mean.npy', 'references/covar.npy', 'references/pi.npy',constraints=myConstraints)
     l = -1e30
-    for i in range(50):
-        if i % 5 == 0:
+    for i in range(30):
+        if i == 29:
             mytestGMM.expectation_step(t=time,prefix="figures/run{0:d}_epoch".format(run_number),saveFile="results/run{0:d}_likelihoods".format(run_number),
-                T_matrix_standard=transition)
+                T_matrix=transition)
         else:
-            mytestGMM.expectation_step(T_matrix_standard=transition)
+            mytestGMM.expectation_step(
+                T_matrix=transition)
         mytestGMM.maximization_step()
         # l_old = l
         # l = mytestGMM.get_likelihood()
         # if abs(l/l_old - 1) < 1e-14 :
         #     break;
         print("it: {0:d} likelihood  function {1:e}".format(i, mytestGMM.get_likelihood()))
+    mytestGMM.save('references/meantest', 'references/covartest', 'references/pitest')
+    means = np.load('references/meantest.npy')
+    covar = np.load('references/covartest.npy')
+    for prim in [Pr.none, Pr.fsm, Pr.contact, Pr.alignthreads, Pr.screw]:
+        print("Stats: ", prim)
+        for var in ('ang_vel_z', 'F_z'):
+            print("{0:s}: mu: {1:f} stdev ".format(var,means[prim.value][var_idxs[var]]),
+            np.sqrt(covar[prim.value,var_idxs[var],var_idxs[var]])) 
 
 
 

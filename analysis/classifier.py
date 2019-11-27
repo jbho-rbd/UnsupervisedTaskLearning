@@ -19,10 +19,6 @@ def sample_primitive(p):
   #p probability distribution of which primitive
   return bisect.bisect(np.cumsum(p), random.random())
 
-#assume all tests are binary
-#then we have a number which represents in binary which ones are passed
-#and an array which represents all the probabilities (2^n)
-#for each primitive -- you see what tests you need to make
 
 # look at the data for each primitive once, run the suggested tests and see which ones yield statistically relevant results, then include those that are statistically relevant in the tree
 

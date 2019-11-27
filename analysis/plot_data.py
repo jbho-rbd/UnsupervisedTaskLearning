@@ -47,10 +47,10 @@ def plot_file(file,tlabelfile=None,prlabelfile=None):
     ax[1].plot(t,vels[:,2],'b',label='z')
     ax[1].set_ylabel('meters/s')
     ax[1].legend(loc='upper right')
-    ax[2].plot(t,euler[:,2],'r',label='$\\theta$')
-    ax[2].plot(t,euler[:,1],'g',label='$\Phi$')
-    ax[2].plot(t,euler[:,0],'b',label='$\Psi$')
-    ax[2].set_ylabel('degrees')
+    ax[2].plot(t,np.pi/180*euler[:,2],'r',label='$\\theta$')
+    ax[2].plot(t,np.pi/180*euler[:,1],'g',label='$\Phi$')
+    ax[2].plot(t,np.pi/180*euler[:,0],'b',label='$\Psi$')
+    ax[2].set_ylabel('radians')
     ax[2].legend(loc='upper right')
     ax[3].plot(t,omegas[:,0],'r',label='$\omega_x$')
     ax[3].plot(t,omegas[:,1],'g',label='$\omega_y$')
@@ -120,8 +120,9 @@ def getlabels(likelihoodfile, tlabelFile = None, prlabelFile = None):
     np.savetxt(prlabelFile,prlist)
     return tlist, prlist
 
-if __name__ == "__main":
+if __name__ == "__main__":
     run_number=int(sys.argv[1])
+    # plot_file('../data2/run{0:d}'.format(run_number))
     getlabels("results/run{0:d}_likelihoods".format(run_number), tlabelFile="results/run{0:d}_tlabels".format(run_number), prlabelFile="results/run{0:d}_prmlabels".format(run_number))
     plot_file('../data2/run{0:d}'.format(run_number),tlabelfile="results/run{0:d}_tlabels".format(run_number),prlabelfile="results/run{0:d}_prmlabels".format(run_number))
     # plot_file('../data2/run1'.format(run_number),tlabelfile="../data2/run1_tlabels".format(run_number),prlabelfile="../data2/run1_prmlabels".format(run_number))
