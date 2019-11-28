@@ -10,6 +10,7 @@ import sys
 import bisect
 import random
 import collections
+import os
 
 from matplotlib.patches import Ellipse
 from PIL import Image
@@ -39,6 +40,7 @@ def initializeTransitionMatrix():
     #
     # T[Pr.contact.value, Pr.fsm.value] = 0.0
     T[Pr.contact.value, Pr.contact.value] = 50
+    # T[Pr.contact.value, Pr.screw.value] = 0
     # T[Pr.contact.value, Pr.alignthreads.value] = 0.2
     #
     T[Pr.alignthreads.value, Pr.alignthreads.value] = 50
@@ -46,8 +48,11 @@ def initializeTransitionMatrix():
     #
     # T[Pr.screw.value, Pr.none.value] = 0.5
     T[Pr.screw.value, Pr.screw.value] = 50
+    # T[Pr.screw.value, Pr.contact.value] = 0
     T = np.transpose(T.transpose() / np.sum(T,axis=1))
     return T
+def mixWithIdentity(T,alpha):
+    return alpha*np.eye(T.shape[0]) + (1 - alpha)*T
 def forward_model_primitive(s_value, T):
     #s is a primitve idx
     #T is the transition matrix
@@ -198,7 +203,7 @@ class GMM:
           for kk, cluster in enumerate(self.clusters):
             ps[kk] = (cluster['pi_k'] * gaussian(self.X[t+1], cluster['mu_k'], cluster['cov_k'])).astype(np.float64)
           for i in range(N_particles):
-            s[i,t+1]=forward_model_primitive(s[i,t],T_forward)
+            s[i,t+1]=forward_model_primitive(s[i,t])
             weights[i] = ps[s[i,t+1]]
           #normalize weights
           weights = weights / np.sum(weights)
@@ -242,6 +247,7 @@ class GMM:
         for i in range(N_particles):
           s[i,0] = sample_primitive(likelihoods[0])
         weights = np.ones(N_particles)
+        alpha = np.zeros(N_particles)
         ps = np.zeros(self.n_clusters)
         p_x1_for_s1 = np.zeros(self.n_clusters)
         for t in range(N-1):
@@ -254,6 +260,7 @@ class GMM:
           # print("t: {0:f}, ps".format(t), ps)
           for i in range(N_particles):
             weights[i] = ps[s[i,t]]
+          self.totals[t+1] = np.max(weights)
           #normalize weights
           weights = weights / np.sum(weights)
           #resample
@@ -265,14 +272,14 @@ class GMM:
             n = int(np.floor(cumweight / averageweight - rand_offset)) + 1 #n particles that need to be allocated
             for particle in range(n_particles_allocated, n):
               s[particle,t] = s[i,t]
+              alpha[particle] = alpha[i]
             n_particles_allocated = n
           #finished resample
           # for s1, cluster1 in enumerate(self.clusters):
           #   ps[s1] = (gaussian(self.X[t+1], cluster1['mu_k'], cluster1['cov_k'])).astype(np.float64)
           for i in range(N_particles):
-            s[i,t+1]=forward_model_primitive(s[i,t],T_forward)
+            s[i,t+1]=forward_model_primitive(s[i,t],mixWithIdentity(T_forward,alpha[i]))
             # weights[i] = ps[s[i,t+1]]*T_forward(s[i,t],s[i,t+1])/
-          self.totals[t+1] = np.sum(ps)
           #count primtivies
           temp = collections.Counter(s[:,t])
           for kk in range(self.n_clusters):
@@ -300,10 +307,14 @@ class GMM:
             for j in range(self.X.shape[0]):
                 diff = (self.X[j] - mu_k).reshape(-1, 1)
                 cov_k += gamma_nk[j] * np.dot(diff, diff.T)
-            # if self.constraints:
-            #     for constraint in cluster['constraint_k']:
-            #         if constraint[0] > -1: #constraint[0] = -1 is used for inactive constraints
-            #             if constraints[2] > -1: # covar constraint active:
+            if self.constraints:
+                for constraint in cluster['constraint_k']:
+                    if constraint[0] > -1: #constraint[0] = -1 is used for inactive constraints
+                        if constraint[2] > 0: # covar constraint active:
+                            scalefactor = constraint[2]/np.sqrt(cov_k[constraint[0],constraint[0]])
+                            if scalefactor < 1:
+                                cov_k[constraint[0],:] = scalefactor*cov_k[constraint[0],:]
+                                cov_k[:,constraint[0]] = scalefactor*cov_k[:,constraint[0]]
 
 
             cov_k /= N_k
@@ -386,54 +397,55 @@ if __name__ == "__main__":
     #set up my Constraints
     myConstraints=[()]*n_primitives
     myConstraints[Pr.none.value] = (
-        (var_idxs['vel_x'], 0.0),
-        (var_idxs['vel_y'], 0.0),
-        (var_idxs['vel_z'], 0.0),
-        (var_idxs['ang_vel_x'], 0.0),
-        (var_idxs['ang_vel_y'], 0.0),
-        (var_idxs['ang_vel_z'], 1.0),
-        (var_idxs['F_x'], 0.0),
-        (var_idxs['F_y'], 0.0),
-        (var_idxs['F_z'], 0.0),
-        (var_idxs['M_x'], 0.0),
-        (var_idxs['M_y'], 0.0),
-        (var_idxs['M_z'], 0.0),
+        (var_idxs['vel_x'], 0.0, -1.0),
+        (var_idxs['vel_y'], 0.0, -1.0),
+        (var_idxs['vel_z'], 0.0, -1.0),
+        (var_idxs['ang_vel_x'], 0.0, -1.0),
+        (var_idxs['ang_vel_y'], 0.0, -1.0),
+        (var_idxs['ang_vel_z'], 0.0, -1.0),
+        (var_idxs['F_x'], 0.0, -1.0),
+        (var_idxs['F_y'], 0.0, -1.0),
+        (var_idxs['F_z'], 0.0, -1.0),
+        (var_idxs['M_x'], 0.0, -1.0),
+        (var_idxs['M_y'], 0.0, -1.0),
+        (var_idxs['M_z'], 0.0, -1.0),
         )
     myConstraints[Pr.fsm.value] = (
-        (var_idxs['M_x'], 0.0),
-        (var_idxs['M_y'], 0.0),
-        (var_idxs['M_z'], 0.0)
+        (var_idxs['M_x'], 0.0, -1.0),
+        (var_idxs['M_y'], 0.0, -1.0),
+        (var_idxs['M_z'], 0.0, -1.0)
     )
     myConstraints[Pr.contact.value] = (
-        (var_idxs['vel_x'], 0.0),
-        (var_idxs['vel_y'], 0.0),
-        (var_idxs['vel_z'], 0.0)
+        (var_idxs['vel_x'], 0.0, -1.0),
+        (var_idxs['vel_y'], 0.0, -1.0),
+        (var_idxs['vel_z'], 0.0, -1.0),
+        (var_idxs['ang_vel_z'], 0.0, 0.5),
     )
     myConstraints[Pr.screw.value] = (
-        (var_idxs['ori_x'],0.0),
-        (var_idxs['ori_y'],0.0),
-        (var_idxs['vel_x'], 0.0),
-        (var_idxs['vel_y'], 0.0),
-        (var_idxs['vel_z'], 0.0),
-        (var_idxs['ang_vel_x'], 0.0),
-        (var_idxs['ang_vel_y'], 0.0)
+        (var_idxs['ori_x'], 0.0, -1.0),
+        (var_idxs['ori_y'], 0.0, -1.0),
+        (var_idxs['vel_x'], 0.0, -1.0),
+        (var_idxs['vel_y'], 0.0, -1.0),
+        (var_idxs['vel_z'], 0.0, -1.0),
+        (var_idxs['ang_vel_x'], 0.0, -1.0),
+        (var_idxs['ang_vel_y'], 0.0, -1.0)
     )
     myConstraints[Pr.alignthreads.value] = (
-        (var_idxs['vel_x'], 0.0),
-        (var_idxs['vel_y'], 0.0),
-        (var_idxs['vel_z'], 0.0),
-        (var_idxs['ang_vel_x'], 0.0),
-        (var_idxs['ang_vel_y'], 0.0),
-        (var_idxs['ang_vel_z'], 1.0)
+        (var_idxs['vel_x'], 0.0, -1.0),
+        (var_idxs['vel_y'], 0.0, -1.0),
+        (var_idxs['vel_z'], 0.0, -1.0),
+        (var_idxs['ang_vel_x'], 0.0, -1.0),
+        (var_idxs['ang_vel_y'], 0.0, -1.0),
+        (var_idxs['ang_vel_z'], 0.0, 0.5)
     )
     myGMM = GMM(X[:,subset])
     # myGMM.initialize_clusters(n_primitives, means0=mu0, cov0=cov0)
     transition = initializeTransitionMatrix()
-    if True:
+    if False:
         myGMM.initialize_clusters(n_primitives, means0=mu0, cov0=cov0,
             constraints=myConstraints)
-        for i in range(10):
-            if i == 9:#i % 100 == 0:
+        for i in range(30):
+            if i == 29:#i % 100 == 0:
                 myGMM.expectation_step(t=time,saveFile="results/run1_likelihoods"
                     ,T_matrix=transition
                     )
@@ -451,7 +463,7 @@ if __name__ == "__main__":
             for var in ('ang_vel_z', 'F_z'):
                 print("{0:s}: mu: {1:f} stdev ".format(var,means[prim.value][var_idxs[var]]),
                     np.sqrt(covar[prim.value,var_idxs[var],var_idxs[var]])) 
-
+    os.system('python3 plot_data.py 1')
     #TESTING
     if len(sys.argv) < 2:
         exit()
@@ -483,6 +495,7 @@ if __name__ == "__main__":
         for var in ('ang_vel_z', 'F_z'):
             print("{0:s}: mu: {1:f} stdev ".format(var,means[prim.value][var_idxs[var]]),
             np.sqrt(covar[prim.value,var_idxs[var],var_idxs[var]])) 
+    os.system('python3 plot_data.py '+str(run_number))
 
 
 

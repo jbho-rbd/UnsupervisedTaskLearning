@@ -121,8 +121,8 @@ def read_data1(runfile,forcebias,t0=0,t1=-1,output_fmt='',tpairlist=None):
         omegas[i,0] = skew_angularvelocity[2,1]
         omegas[i,1] = skew_angularvelocity[0,2]
         omegas[i,2] = skew_angularvelocity[1,0]
-        k = 10.0
-        omegas[i,2] = k/(k + omegas[i,2]*omegas[i,2])
+        # k = 5.0
+        # omegas[i,2] = k/(k + omegas[i,2]*omegas[i,2])
     if output_fmt == 'obs':#output as list of observations
         obs_list = []
         for i in range(N):
