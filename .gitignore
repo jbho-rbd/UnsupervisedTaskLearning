@@ -31,6 +31,9 @@
 *.out
 *.app
 
+# Binaries
+*.pth
+
 # bin and build folders
 build/
 bin/
