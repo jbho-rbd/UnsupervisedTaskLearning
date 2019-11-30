@@ -399,17 +399,17 @@ if __name__ == "__main__":
     # By manually labelling the data extract some mean and cov data to begin with
     mu0 = np.zeros((n_primitives,N))
     cov0 = np.zeros((n_primitives,N,N))
-    tlabels = np.genfromtxt("../data2/run1_tlabels",dtype=float)
+    tlabels = np.genfromtxt("../data/medium_cap/raw_medium_cap/run1_tlabels",dtype=float)
     tlabels = np.insert(tlabels,0,0.0)
-    labels=[Pr(int(idx)) for idx in np.genfromtxt("../data2/run1_prmlabels")]
+    labels=[Pr(int(idx)) for idx in np.genfromtxt("../data/medium_cap/raw_medium_cap/run1_prmlabels")]
     for prim in [Pr.none, Pr.fsm, Pr.align, Pr.engage, Pr.screw, Pr.tighten]:
         tpairs = []
         for i in range(len(labels)):#collect different labels and time periods corresponding to this primitive
             if(labels[i] == prim):
                 tpairs.append([tlabels[i],tlabels[i+1]])
-        # print("Primitive: {0:s}".format(Pr(prim)))
-        # print(tpairs)
-        time, X = read_data1('../data2/run1', '../data2/bias.force',output_fmt='array',tpairlist=tpairs)
+        print("Primitive: {0:s}".format(Pr(prim)))
+        print(tpairs)
+        time, X = read_data1('../data/medium_cap/raw_medium_cap/run1', '../data/medium_cap/raw_medium_cap/bias.force',output_fmt='array',tpairlist=tpairs)
         #each row of X is an observation
         #each column of X is a variable
         mu0[prim.value] = np.mean(X[:,subset],axis=0)
@@ -419,7 +419,7 @@ if __name__ == "__main__":
         # print(np.linalg.cond(cov0[prim.value]))
         # print("{0:e}".format(np.linalg.cond(cov0[prim.value])))
     #TRAINING
-    time,X = read_data1('../data2/run1', '../data2/bias.force',output_fmt='array',t0=0.0, t1 = 10.5)
+    time,X = read_data1('../data/medium_cap/raw_medium_cap/run1', '../data/medium_cap/raw_medium_cap/bias.force',output_fmt='array',t0=0.0, t1 = 10.5)
     # np.savetxt("scaling_cov_diag.dat",np.diag(np.cov(X,rowvar=False)))
     #set up my Constraints
     myConstraints=[()]*n_primitives
@@ -475,7 +475,7 @@ if __name__ == "__main__":
     myGMM = GMM(X[:,subset])
     # myGMM.initialize_clusters(n_primitives, means0=mu0, cov0=cov0)
     transition = initializeTransitionMatrix()
-    if False:
+    if True:
         myGMM.initialize_clusters(n_primitives, means0=mu0, cov0=cov0,
             constraints=myConstraints)
         for i in range(30):
@@ -502,9 +502,9 @@ if __name__ == "__main__":
     if len(sys.argv) < 2:
         exit()
     run_number=int(sys.argv[1])
-    testfile='../data2/run{0:d}'.format(run_number)
+    testfile='../data/medium_cap/raw_medium_cap/run{0:d}'.format(run_number)
     print("--------testing: ",testfile, "-----------")
-    time,X = read_data1(testfile, '../data2/bias.force',output_fmt='array')
+    time,X = read_data1(testfile, '../data/medium_cap/raw_medium_cap/bias.force',output_fmt='array')
     offset = 0.01
     transition = initializeTransitionMatrix(final=True)
     success = False

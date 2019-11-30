@@ -17,7 +17,7 @@ def plot_file(file,tlabelfile=None,prlabelfile=None):
         prlabelfile: text file with list of primitives as an integer 
 
     """    
-    t, p1, vels, euler, omegas, F, M = read_data1(file, '../data2/bias.force')#,t0=0,t1=5.0)
+    t, p1, vels, euler, omegas, F, M = read_data1(file, '../data/medium_cap/raw_medium_cap/bias.force')#,t0=0,t1=5.0)
     """
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
@@ -147,23 +147,23 @@ if __name__ == "__main__":
     run_number=int(sys.argv[1])
     #---making labels---
     # vlines=np.array([0.0, 0.84, 3.27, 4.21, 5.07, 6.74, 6.93, 7.44, 7.588, 8.06, 8.20, 8.68, 8.89, 9.56, 10.36])
-    # np.savetxt("../data2/run{0:d}_tlabels".format(run_number),vlines[1:])
+    # np.savetxt("../data/medium_cap/raw_medium_cap/run{0:d}_tlabels".format(run_number),vlines[1:])
     # labels = [Pr.none, Pr.fsm, Pr.align, Pr.engage, Pr.screw,  Pr.none, Pr.screw, Pr.none, Pr.screw, Pr.none, Pr.screw, Pr.none, Pr.screw, Pr.tighten]
-    # np.savetxt("../data2/run{0:d}_prmlabels".format(run_number),[label.value for label in labels])
-    # plot_file('../data2/run{0:d}'.format(run_number))
-    # plot_file('../data2/run{0:d}'.format(run_number),tlabelfile="../data2/run{0:d}_tlabels".format(run_number),prlabelfile="../data2/run{0:d}_prmlabels".format(run_number))
+    # np.savetxt("../data/medium_cap/raw_medium_cap/run{0:d}_prmlabels".format(run_number),[label.value for label in labels])
+    # plot_file('../data/medium_cap/raw_medium_cap/run{0:d}'.format(run_number))
+    # plot_file('../data/medium_cap/raw_medium_cap/run{0:d}'.format(run_number),tlabelfile="../data/medium_cap/raw_medium_cap/run{0:d}_tlabels".format(run_number),prlabelfile="../data/medium_cap/raw_medium_cap/run{0:d}_prmlabels".format(run_number))
     
     #---saving data files for training----
     dummya, dummyb, prs = getlabels("results/run{0:d}_likelihoods".format(run_number), tlabelFile="results/run{0:d}_tlabels".format(run_number), prlabelFile="results/run{0:d}_prmlabels".format(run_number))
-    # time, X = read_data1('../data2/run' + str(run_number), '../data2/bias.force',output_fmt='array')
+    # time, X = read_data1('../data/medium_cap/raw_medium_cap/run' + str(run_number), '../data/medium_cap/raw_medium_cap/bias.force',output_fmt='array')
     # N = len(time)
     # headerstr = "time pos_x pos_y pos_z ori_x ori_y ori_z vel_x vel_y vel_z angvel_x angvel_y angvel_z Fx Fy Fz Mx My Mz Pr"
-    # np.savetxt("../data2/run{0:d}_labelled".format(run_number),np.hstack((np.reshape(time,(N,1)), X, np.reshape(prs,(N,1)))),header=headerstr)
+    # np.savetxt("../data/medium_cap/raw_medium_cap/run{0:d}_labelled".format(run_number),np.hstack((np.reshape(time,(N,1)), X, np.reshape(prs,(N,1)))),header=headerstr)
 
-    success_rate = compute_success_rate("results/run{0:d}_likelihoods".format(run_number), "../data2/run{0:d}_tlabels".format(run_number),"../data2/run{0:d}_prmlabels".format(run_number))
+    success_rate = compute_success_rate("results/run{0:d}_likelihoods".format(run_number), "../data/medium_cap/raw_medium_cap/run{0:d}_tlabels".format(run_number),"../data/medium_cap/raw_medium_cap/run{0:d}_prmlabels".format(run_number))
     print("success_rate: {0:f}".format(success_rate))
     #---plotting
-    # plot_file('../data2/run{0:d}'.format(run_number),tlabelfile="results/run{0:d}_tlabels".format(run_number),prlabelfile="results/run{0:d}_prmlabels".format(run_number))
-    # plot_file('../data2/run1'.format(run_number),tlabelfile="../data2/run1_tlabels".format(run_number),prlabelfile="../data2/run1_prmlabels".format(run_number))
+    # plot_file('../data/medium_cap/raw_medium_cap/run{0:d}'.format(run_number),tlabelfile="results/run{0:d}_tlabels".format(run_number),prlabelfile="results/run{0:d}_prmlabels".format(run_number))
+    # plot_file('../data/medium_cap/raw_medium_cap/run1'.format(run_number),tlabelfile="../data/medium_cap/raw_medium_cap/run1_tlabels".format(run_number),prlabelfile="../data/medium_cap/raw_medium_cap/run1_prmlabels".format(run_number))
     # plt.savefig("results/labelled_run{0:d}.png".format(run_number),dpi=600)
     # plt.show()
