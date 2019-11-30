@@ -2,6 +2,8 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader
 
+NUM_LABEL_COLUMNS = 1 # switch according to number used in task
+
 class PrimitiveTransitionsSet(Dataset):
     """ 
     Customized dataloader for our primitive transitions dataset 
@@ -18,30 +20,30 @@ class PrimitiveTransitionsSet(Dataset):
                 - pos_x pos_y pos_z ori_x ori_y ori_z 
                 - vel_x vel_y vel_z angvel_x angvel_y angvel_z 
                 - Fx Fy Fz Mx My Mz 
-             (2) labels (5): Pr0 Pr1 Pr2 Pr3 Pr4 (current primitive probabilities)
+             (2) labels (6): Pr0 Pr1 Pr2 Pr3 Pr4 Pr5 (current primitive probabilities)
         """
         dataArray = np.loadtxt(data) # dataArray is an (N,24) numpy array
         
         numVars = dataArray.shape[1]
         numDataVectors = dataArray.shape[0]
-        numPrimitives = 5
-        numStateVars = numVars - numPrimitives
+        numStateVars = numVars - NUM_LABEL_COLUMNS
         
-        states = dataArray[:,0:numStateVars]
-        labels = dataArray[:,numStateVars:]
+        # Associate the state @t with the label @t+1 because that's what we want to learn
+        states = dataArray[:-1,0:numStateVars]
+        labels = dataArray[1:,-1]
         
         self.states = torch.from_numpy(states).float()
-        self.labels = torch.from_numpy(labels).float()  
-        self.len = numDataVectors
+        self.labels = torch.from_numpy(labels).long()  
+        self.len = numDataVectors - 1 #to account for the @t, @t-1 shift
     
     def __getitem__(self, index):
         """ Get a sample from the dataset
         """
-        image = self.states[index]
+        state = self.states[index]
         label = self.labels[index]
 
-        # return image and label
-        return image, label
+        # return state and label
+        return state, label
 
     def __len__(self):
         """
