@@ -68,16 +68,12 @@ def plot_file(file,tlabelfile=None,prlabelfile=None):
     ax[5].set_ylabel('Nm')
     ax[5].legend(loc='upper right')
     plotLabels=tlabelfile is not None and prlabelfile is not None
-    # vlines=np.array([0.0, 1.08, 3.27,4.2,5.5,6.72,6.9,7.44, 7.6, 8.02, 8.21, 8.68, 8.98, 9.97, 10.5])
-    # np.savetxt("../data2/run1_tlabels",vlines[1:])
-    # labels = [Pr.none, Pr.fsm, Pr.contact, Pr.align, Pr.screw, Pr.none, Pr.screw, Pr.none, Pr.screw, Pr.none, Pr.screw, Pr.none, Pr.screw, Pr.none]
-    # np.savetxt("../data2/run1_prmlabels",[label.value for label in labels])
     if plotLabels:
         vlines = np.genfromtxt(tlabelfile,dtype=float)
         vlines = np.insert(vlines,0,0.0)
         labels=[Pr(int(idx)) for idx in np.genfromtxt(prlabelfile)]
         for i in range(7):
-            for vline in vlines[1:-1]:
+            for vline in vlines[1:]:
                 ax[i].axvline(x=vline,color='k',linestyle=':')
         y = 0.5
         xcords = 0.5*(vlines[1:] + vlines[:-1])
@@ -118,12 +114,56 @@ def getlabels(likelihoodfile, tlabelFile = None, prlabelFile = None):
     tlist.append(t[-1])
     np.savetxt(tlabelFile,tlist)
     np.savetxt(prlabelFile,prlist)
-    return tlist, prlist
+    return tlist, prlist, prs
+def compute_success_rate(likelihoodfile, tlabelFile_groundTruth, prlabelFile_groundTruth):
+    dat = np.genfromtxt(likelihoodfile)
+    t = dat[:,0]
+    likelihoods = dat[:,1:]
+    prs = np.argmax(likelihoods,axis=1)
+    successes = 0.0
+    tlabels=np.genfromtxt(tlabelFile_groundTruth)
+    prlabels=np.genfromtxt(prlabelFile_groundTruth)
+    pr0 = prlabels[0]
+    pr1 = -1
+    margin = 0.05
+    pr_idx = 0
+    count = 0
+    for i, t_i in enumerate(t):
+        if t_i > tlabels[-1]:
+            break
+        if pr1 < 0 and t_i + margin > tlabels[pr_idx]:
+            if pr_idx < len(tlabels) - 1:
+                pr1 = int(prlabels[pr_idx + 1])
+        elif t_i - margin > tlabels[pr_idx]:
+            pr0 = pr1
+            pr1 = -1
+            pr_idx = pr_idx + 1
+        successes += int(prs[i] == pr0 or prs[i] == pr1)
+        count += 1
+    return successes / count
+
 
 if __name__ == "__main__":
     run_number=int(sys.argv[1])
+    #---making labels---
+    # vlines=np.array([0.0, 0.84, 3.27, 4.21, 5.07, 6.74, 6.93, 7.44, 7.588, 8.06, 8.20, 8.68, 8.89, 9.56, 10.36])
+    # np.savetxt("../data2/run{0:d}_tlabels".format(run_number),vlines[1:])
+    # labels = [Pr.none, Pr.fsm, Pr.align, Pr.engage, Pr.screw,  Pr.none, Pr.screw, Pr.none, Pr.screw, Pr.none, Pr.screw, Pr.none, Pr.screw, Pr.tighten]
+    # np.savetxt("../data2/run{0:d}_prmlabels".format(run_number),[label.value for label in labels])
     # plot_file('../data2/run{0:d}'.format(run_number))
-    getlabels("results/run{0:d}_likelihoods".format(run_number), tlabelFile="results/run{0:d}_tlabels".format(run_number), prlabelFile="results/run{0:d}_prmlabels".format(run_number))
-    plot_file('../data2/run{0:d}'.format(run_number),tlabelfile="results/run{0:d}_tlabels".format(run_number),prlabelfile="results/run{0:d}_prmlabels".format(run_number))
+    # plot_file('../data2/run{0:d}'.format(run_number),tlabelfile="../data2/run{0:d}_tlabels".format(run_number),prlabelfile="../data2/run{0:d}_prmlabels".format(run_number))
+    
+    #---saving data files for training----
+    dummya, dummyb, prs = getlabels("results/run{0:d}_likelihoods".format(run_number), tlabelFile="results/run{0:d}_tlabels".format(run_number), prlabelFile="results/run{0:d}_prmlabels".format(run_number))
+    # time, X = read_data1('../data2/run' + str(run_number), '../data2/bias.force',output_fmt='array')
+    # N = len(time)
+    # headerstr = "time pos_x pos_y pos_z ori_x ori_y ori_z vel_x vel_y vel_z angvel_x angvel_y angvel_z Fx Fy Fz Mx My Mz Pr"
+    # np.savetxt("../data2/run{0:d}_labelled".format(run_number),np.hstack((np.reshape(time,(N,1)), X, np.reshape(prs,(N,1)))),header=headerstr)
+
+    success_rate = compute_success_rate("results/run{0:d}_likelihoods".format(run_number), "../data2/run{0:d}_tlabels".format(run_number),"../data2/run{0:d}_prmlabels".format(run_number))
+    print("success_rate: {0:f}".format(success_rate))
+    #---plotting
+    # plot_file('../data2/run{0:d}'.format(run_number),tlabelfile="results/run{0:d}_tlabels".format(run_number),prlabelfile="results/run{0:d}_prmlabels".format(run_number))
     # plot_file('../data2/run1'.format(run_number),tlabelfile="../data2/run1_tlabels".format(run_number),prlabelfile="../data2/run1_prmlabels".format(run_number))
-    plt.show()
+    # plt.savefig("results/labelled_run{0:d}.png".format(run_number),dpi=600)
+    # plt.show()
