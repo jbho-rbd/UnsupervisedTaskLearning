@@ -33,7 +33,7 @@ INPUT_DIM = 19
 OUTPUT_DIM = 6 #num of primitives
 
 SAVE_INTERVAL = 10
-PRINT_INTERVAL = 20
+PRINT_INTERVAL = 1
 
 """ --------------------------------------------------------------------------------------
    Training, Test Sets and Pytorch environment
@@ -77,8 +77,8 @@ optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE, betas=(BETA_1, BETA
 ------------------------------------------------------------------------------------------- """
 def save_checkpoint(checkpoint_path, model, optimizer):
     # state_dict: a Python dictionary object that:
-    # - for a model, maps each layer to its parameter tensor;
-    # - for an optimizer, contains info about the optimizers states and hyperparameters used.
+    #   - for a model, maps each layer to its parameter tensor;
+    #   - for an optimizer, contains info about the optimizers states and hyperparameters used.
     state = {
         'state_dict': model.state_dict(),
         'optimizer' : optimizer.state_dict()}
@@ -95,10 +95,10 @@ def load_checkpoint(checkpoint_path, model, optimizer):
 """-------------------------------------------------------------------------------------------"""
 def test():
     model.eval()  # set evaluation mode
-    test_loss = 0.0
+    batch_test_loss = 0.0
     total = 0
     correct = 0
-
+    count = 0
     with torch.no_grad():
         for state, label in testSet_loader:
             # Load state to a Torch Variable   
@@ -106,40 +106,33 @@ def test():
             # Forward pass only to get logits/output
             output = model(state)
             # Get predictions from the maximum value
+            # Note that, predicted.shape = batch_size
             _, predicted = torch.max(output.data, 1)
+            np_predicted = predicted.cpu().detach().numpy()
+            if count == 0:
+                allPredictions = np_predicted
+            else:
+                allPredictions = np.hstack((allPredictions,np_predicted))
+            count += 1
             # Total number of labels
             total += label.size(0)
             # Total correct predictions
             correct += (predicted == label).sum()
-
-            # if test_loss == 0.0:
-            #     network_outputs = output.detach().numpy()
-            # else:
-            #     network_outputs = np.vstack((network_outputs, output.detach().numpy()))
-            
-            # total batch loss
-            test_loss += lossCriterion(output, label).item() 
+            # Test loss
+            test_loss = lossCriterion(output, label)
+            # Total batch loss
+            batch_test_loss += test_loss.item() 
         
-        # average batch loss
-        avg_test_loss = test_loss/len(testSet_loader.dataset)
-
-        # Accuracy
-        accuracy = 100 * correct / total
-
-        # Print accuracy and loss
-        print('[--TEST--] Avg Loss: {}. Accuracy: {}'.format(avg_test_loss, accuracy))
-
-    # ----- Save ouput: softmax outputs       
-    # np.savetxt('test_outputs/softmax_outputs.txt', network_outputs, 
-        # header = '        none                    free_space                 align               engage_threads              screw')
+    # Average batch loss
+    avg_test_loss = batch_test_loss/len(testSet_loader.dataset)
+    # Batch accuracy
+    accuracy = 100 * correct / total
+    
+    # Print accuracy and loss
+    print('[--TEST--] Avg Loss: {:.2e}. Accuracy: {:d}'.format(avg_test_loss, accuracy))
 
     # ----- Save ouput: prediction        
-    np.savetxt('test_set_labels/predicted_labels.txt', predicted, "%i")
-        # header = '  prediction      none                    free_space                 align               engage_threads              screw')
-
-    # # Print avg test loss
-    # test_loss /= len(testSet_loader.dataset)
-    # print('\n[Test set] Average loss: {:.4f} \n'.format(test_loss))
+    np.savetxt('test_set_labels/predicted_labels.txt', allPredictions, "%i")
     
     return avg_test_loss, accuracy
 
@@ -148,7 +141,7 @@ def train(num_epochs, save_interval = SAVE_INTERVAL, print_interval=PRINT_INTERV
     model.train()  # set training mode
     iteration = 0
     traindat = np.zeros((num_epochs, 4)) 
-    train_loss = 0.0
+    batch_train_loss = 0.0
 
     for ep in range(num_epochs):        
         start = time()     
@@ -159,47 +152,47 @@ def train(num_epochs, save_interval = SAVE_INTERVAL, print_interval=PRINT_INTERV
             # forward pass
             output = model(data)
             # compute loss: negative log-likelihood
-            loss = lossCriterion(output, label)
+            train_loss = lossCriterion(output, label)
             # total epoch training loss
-            train_loss += loss.item() 
+            batch_train_loss += train_loss.item() 
             # backward pass
             # clear the gradients of all tensors being optimized.
             optimizer.zero_grad()
             # accumulate (i.e. add) the gradients from this forward pass
-            loss.backward()
+            train_loss.backward()
             # performs a single optimization step (parameter update)
             optimizer.step()
 
             # ----- Save checkpoint (binary file): iteration, model, optimizer
             if iteration % save_interval == 0 and iteration > 0:
-                save_checkpoint('checkpoints/transitionModel-%i.pth' % iteration, model, optimizer)
-            
-            # ----- Print training epoch and loss
+                save_checkpoint('checkpoints/transitionModel-%i.pth' % iteration, model, optimizer) 
+
+            # ----- Print epoch progress
             if iteration % print_interval == 0:
-                print('[TRAIN] Epoch: {} [{}/{} ({:.0f}%)] Loss: {:.6f}'.format(
-                    ep, batch_idx * BATCH_SIZE, len(trainSet_loader.dataset),
-                    100. * batch_idx / len(trainSet_loader), loss.item()))
+                print('Epoch: {} [{}/{} ({:.0f}%)]'.format(ep, 
+                    batch_idx * BATCH_SIZE, len(trainSet_loader.dataset),
+                    100. * batch_idx / len(trainSet_loader)))
 
             iteration += 1
         
-        # ----- Print epoch duration time
+        """---------------------
+            @end of each epoch
+        ------------------------"""
+        # Print epoch duration
         end = time()
-        print('{:.2f}s'.format(end-start)) # epoch duration 
-            
-        """ ----- Evaluate model and save data @end of each epoch 
-                    - epoch
-                    - train_loss
-                    - test_loss
-                    - test_accuracy 
-        """
+        print('{:.2f}s'.format(end-start)) 
+        # Calculate and print average loss
+        avg_train_loss = batch_train_loss/len(trainSet_loader.dataset)
+        print('[--TRAIN--] Avg Loss: {:.2e}'.format(avg_train_loss))    
+        # Evaluate model on testSet and save epoch data
+        #    - epoch, test_accuracy, train_loss, test_loss
         traindat[ep,0] = ep # current epoch number
-        avg_train_loss = train_loss/len(trainSet_loader.dataset)
         traindat[ep,2] = avg_train_loss
-        test_loss, accuracy = test() # evaluate model on test set
+        avg_test_loss, accuracy = test() # evaluate model on test set
         traindat[ep,1] = accuracy
-        traindat[ep,3] = test_loss 
+        traindat[ep,3] = avg_test_loss 
         np.savetxt("model_loss_and_accuracy/accuracy_loss.txt", 
-            traindat, ("%i", "%.16f", "%.16f", "%.16f"), header='epoch test_accuracy train_avg_loss test_avg_loss')
+            traindat, ("%i", "%.d", "%.2e", "%.2e"), header='epoch test_accuracy train_avg_loss test_avg_loss')
     
     # Save final checkpoint   
     save_checkpoint('checkpoints/transitionModel-%i.pth' % iteration, model, optimizer)
