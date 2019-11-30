@@ -27,28 +27,46 @@ def sample_primitive(p):
 
 # look at the data for each primitive once, run the suggested tests and see which ones yield statistically relevant results, then include those that are statistically relevant in the tree
 
-def initializeTransitionMatrix():
+def initializeTransitionMatrix(final=False):
     #transition matrix
-    T = np.ones((5,5))
+    if final:
+        T = np.zeros((6,6))
+    else:
+        T = np.ones((6,6))
     #
     T[Pr.none.value, Pr.none.value] = 50
+    T[Pr.none.value, Pr.fsm.value] = 1
+    T[Pr.none.value, Pr.screw.value] = 1
     # T[Pr.none.value, Pr.fsm.value] = 0.05
     #
     T[Pr.fsm.value, Pr.fsm.value] = 50
+    T[Pr.fsm.value, Pr.align.value] = 1
     # T[Pr.fsm.value, Pr.none.value] = 0.05
-    # T[Pr.fsm.value, Pr.contact.value] = 0.05
     #
-    # T[Pr.contact.value, Pr.fsm.value] = 0.0
-    T[Pr.contact.value, Pr.contact.value] = 50
-    # T[Pr.contact.value, Pr.screw.value] = 0
-    # T[Pr.contact.value, Pr.alignthreads.value] = 0.2
+    # T[Pr.align.value, Pr.fsm.value] = 0.0
+    T[Pr.align.value, Pr.align.value] = 50
+    # T[Pr.align.value, Pr.screw.value] = 0
+    T[Pr.align.value, Pr.engage.value] = 1
     #
-    T[Pr.alignthreads.value, Pr.alignthreads.value] = 50
-    # T[Pr.alignthreads.value, Pr.screw.value] = 0.1
-    #
+    T[Pr.engage.value, Pr.engage.value] = 50
+    T[Pr.engage.value, Pr.none.value] = 1
+    T[Pr.engage.value, Pr.screw.value] = 1
+    # T[Pr.engage.value, Pr.tighten.value] = 0
+
+    # T[Pr.engage.value, Pr.screw.value] = 0.1
+    
     # T[Pr.screw.value, Pr.none.value] = 0.5
     T[Pr.screw.value, Pr.screw.value] = 50
-    # T[Pr.screw.value, Pr.contact.value] = 0
+    T[Pr.screw.value, Pr.none.value] = 1
+    T[Pr.screw.value, Pr.tighten.value] = 1
+    # T[Pr.screw.value, Pr.engage.value] = 0
+    # T[Pr.screw.value, Pr.align.value] = 0
+
+    T[Pr.tighten.value, Pr.tighten.value] = 50
+    T[Pr.tighten.value, Pr.none.value] = 1
+    # T[Pr.tighten.value, Pr.screw.value] = 0
+
+
     T = np.transpose(T.transpose() / np.sum(T,axis=1))
     return T
 def mixWithIdentity(T,alpha):
@@ -60,9 +78,10 @@ def forward_model_primitive(s_value, T):
 def gaussian(X, mu, cov):
     return scipy.stats.multivariate_normal.pdf(X, mean=mu, cov=cov)
 class GMM:
-    def __init__(self, X):
+    def __init__(self, X, offset=0.0):
         self.X = X;
         self.epoch = 0;
+        self.offset = offset
     def initialize_clusters(self, n_clusters, constraints=None, means0=None, cov0=None):#each cluster is a primitive
         self.clusters = []
         self.n_clusters = n_clusters
@@ -113,11 +132,14 @@ class GMM:
             self.clusters.append({
                 'pi_k': pi_k[i],
                 'mu_k': mu_k[i],
-                'cov_k': 1.5*cov_k[i]
+                'cov_k': 2.0*cov_k[i]
             })
             if self.constraints:
                 self.clusters[i]['constraint_k'] = constraints[i]
         return self.clusters
+    def inflate_cov(self, factor):#each cluster is a primitive
+        for cluster in self.clusters:
+            cluster['cov_k'] = factor*cluster['cov_k']
     def expectation_step(self,t=None,prefix="figures/likelihood",saveFile=None,T_matrix=None, T_matrix_standard=None):
         # computes realisations or whatever you wanna call them
         # computes p(belong to primitive | X) for each X
@@ -138,7 +160,7 @@ class GMM:
             ax.legend()
             ax.set_title("Epoch: {0:d}, Likelihood: {1:e}".format(self.epoch, self.get_likelihood()))
             plt.savefig(prefix+"{0:d}.png".format(self.epoch),dpi=600)
-            plt.show()
+            # plt.show()
         self.epoch += 1
         if saveFile is not None:
             likelihoods = np.zeros((len(t), self.n_clusters + 1))
@@ -240,6 +262,7 @@ class GMM:
         for kk, cluster in enumerate(self.clusters):
             likelihoods[0,kk] = (cluster['pi_k'] * gaussian(self.X[0], cluster['mu_k'], cluster['cov_k'])).astype(np.float64)
         self.totals[0] = np.sum(likelihoods[0,:])
+        likelihoods[0,0] = 1e10
         likelihoods[0,:] /= np.sum(likelihoods[0,:])
         N_particles = 100;
         #store primitives as integers
@@ -256,7 +279,7 @@ class GMM:
           for s0, cluster0 in enumerate(self.clusters):
             ps[s0] = 0.0
             for s1, cluster1 in enumerate(self.clusters):
-                ps[s0] += T_forward[s0,s1]*p_x1_for_s1[s1]
+                ps[s0] += T_forward[s0,s1]*(p_x1_for_s1[s1] + self.offset)
           # print("t: {0:f}, ps".format(t), ps)
           for i in range(N_particles):
             weights[i] = ps[s[i,t]]
@@ -289,6 +312,7 @@ class GMM:
         for kk, cluster in enumerate(self.clusters):
             likelihoods[-1,kk] = temp[-1]/N_particles
             cluster['gamma_nk'] = likelihoods[:,kk]
+        self.offset = max(self.offset*0.5, 0.1)
     def maximization_step(self):
         N = float(self.X.shape[0])
         
@@ -337,6 +361,10 @@ class GMM:
         np.save(meanfile,mu0)
         np.save(covarfile, cov0)
         np.save(pifile,pi0)
+def mix_mean_covar_pi(mean,covar,pi,mean0,covar0,pi0,k):
+    np.save(mean, np.load(mean)*(1 - k) + k*np.load(mean0))
+    np.save(covar, np.load(covar)*(1 - k) + k*np.load(covar0))
+    np.save(pi, np.load(pi)*(1 - k) + k*np.load(pi0))
 if __name__ == "__main__":
     var_idxs = { 
         'pos_x' : 0,
@@ -358,16 +386,15 @@ if __name__ == "__main__":
         'M_y' : 16,
         'M_z' : 17}
         # 'ang_vel_z_transform' : 1
-    # subset = np.hstack((np.arange(3, 5), np.arange(6,18)))
-    subset = np.hstack((np.arange(6,18)))
-    print(subset)
+    subset = np.hstack((np.arange(3, 5), np.arange(6,18)))
+    # subset = np.hstack((np.arange(6,18)))
     for key, val in var_idxs.items():
         found_idxs = np.where(subset==val)[0]
         if found_idxs.size > 0:
             var_idxs[key] = found_idxs[0]
         else:
             var_idxs[key] = -1
-    n_primitives = 5
+    n_primitives = 6
     N = len(subset)
     # By manually labelling the data extract some mean and cov data to begin with
     mu0 = np.zeros((n_primitives,N))
@@ -375,13 +402,13 @@ if __name__ == "__main__":
     tlabels = np.genfromtxt("../data2/run1_tlabels",dtype=float)
     tlabels = np.insert(tlabels,0,0.0)
     labels=[Pr(int(idx)) for idx in np.genfromtxt("../data2/run1_prmlabels")]
-    for prim in [Pr.none, Pr.fsm, Pr.contact, Pr.alignthreads, Pr.screw]:
+    for prim in [Pr.none, Pr.fsm, Pr.align, Pr.engage, Pr.screw, Pr.tighten]:
         tpairs = []
         for i in range(len(labels)):#collect different labels and time periods corresponding to this primitive
             if(labels[i] == prim):
                 tpairs.append([tlabels[i],tlabels[i+1]])
-        print("Primitive: {0:s}".format(Pr(prim)))
-        print(tpairs)
+        # print("Primitive: {0:s}".format(Pr(prim)))
+        # print(tpairs)
         time, X = read_data1('../data2/run1', '../data2/bias.force',output_fmt='array',tpairlist=tpairs)
         #each row of X is an observation
         #each column of X is a variable
@@ -415,22 +442,29 @@ if __name__ == "__main__":
         (var_idxs['M_y'], 0.0, -1.0),
         (var_idxs['M_z'], 0.0, -1.0)
     )
-    myConstraints[Pr.contact.value] = (
+    myConstraints[Pr.align.value] = (
         (var_idxs['vel_x'], 0.0, -1.0),
         (var_idxs['vel_y'], 0.0, -1.0),
         (var_idxs['vel_z'], 0.0, -1.0),
         (var_idxs['ang_vel_z'], 0.0, 0.5),
     )
-    myConstraints[Pr.screw.value] = (
-        (var_idxs['ori_x'], 0.0, -1.0),
-        (var_idxs['ori_y'], 0.0, -1.0),
+    myConstraints[Pr.engage.value] = (
+        (var_idxs['ori_x'], 0.0, 0.5),
+        (var_idxs['ori_y'], 0.0, 0.5),
         (var_idxs['vel_x'], 0.0, -1.0),
         (var_idxs['vel_y'], 0.0, -1.0),
         (var_idxs['vel_z'], 0.0, -1.0),
         (var_idxs['ang_vel_x'], 0.0, -1.0),
         (var_idxs['ang_vel_y'], 0.0, -1.0)
     )
-    myConstraints[Pr.alignthreads.value] = (
+    myConstraints[Pr.screw.value] = (
+        (var_idxs['vel_x'], 0.0, -1.0),
+        (var_idxs['vel_y'], 0.0, -1.0),
+        (var_idxs['vel_z'], 0.0, -1.0),
+        (var_idxs['ang_vel_x'], 0.0, -1.0),
+        (var_idxs['ang_vel_y'], 0.0, -1.0),
+    )
+    myConstraints[Pr.tighten.value] = (
         (var_idxs['vel_x'], 0.0, -1.0),
         (var_idxs['vel_y'], 0.0, -1.0),
         (var_idxs['vel_z'], 0.0, -1.0),
@@ -458,12 +492,12 @@ if __name__ == "__main__":
         myGMM.save('references/mean', 'references/covar', 'references/pi')
         means = np.load('references/mean.npy')
         covar = np.load('references/covar.npy')
-        for prim in [Pr.none, Pr.fsm, Pr.contact, Pr.alignthreads, Pr.screw]:
+        for prim in [Pr.none, Pr.fsm, Pr.align, Pr.engage, Pr.screw, Pr.tighten]:
             print("Means: ", prim)
             for var in ('ang_vel_z', 'F_z'):
                 print("{0:s}: mu: {1:f} stdev ".format(var,means[prim.value][var_idxs[var]]),
                     np.sqrt(covar[prim.value,var_idxs[var],var_idxs[var]])) 
-    os.system('python3 plot_data.py 1')
+        os.system('python3 plot_data.py 1')
     #TESTING
     if len(sys.argv) < 2:
         exit()
@@ -471,28 +505,39 @@ if __name__ == "__main__":
     testfile='../data2/run{0:d}'.format(run_number)
     print("--------testing: ",testfile, "-----------")
     time,X = read_data1(testfile, '../data2/bias.force',output_fmt='array')
-    mytestGMM = GMM(X[:,subset])
-    mytestGMM.initialize_clusters_from_savedfiles(n_primitives, 'references/mean.npy', 'references/covar.npy', 'references/pi.npy',constraints=myConstraints)
-    l = -1e30
-    for i in range(30):
-        if i == 29:
-            mytestGMM.expectation_step(t=time,prefix="figures/run{0:d}_epoch".format(run_number),saveFile="results/run{0:d}_likelihoods".format(run_number),
-                T_matrix=transition)
-        else:
-            mytestGMM.expectation_step(
-                T_matrix=transition)
-        mytestGMM.maximization_step()
-        # l_old = l
-        # l = mytestGMM.get_likelihood()
-        # if abs(l/l_old - 1) < 1e-14 :
-        #     break;
-        print("it: {0:d} likelihood  function {1:e}".format(i, mytestGMM.get_likelihood()))
-    mytestGMM.save('references/meantest', 'references/covartest', 'references/pitest')
+    offset = 0.01
+    transition = initializeTransitionMatrix(final=True)
+    success = False
+    while not success and offset < 10000:
+        success = True
+        offset = offset*10
+        print("offset: ", offset)
+        mytestGMM = GMM(X[:,subset])
+        mytestGMM.offset = offset
+        try:
+            mytestGMM.initialize_clusters_from_savedfiles(n_primitives, 'references/mean.npy', 'references/covar.npy', 'references/pi.npy',constraints=myConstraints)
+            for i in range(30):
+                if i == 29:
+                    mytestGMM.expectation_step(t=time,prefix="figures/run{0:d}_epoch".format(run_number),saveFile="results/run{0:d}_likelihoods".format(run_number),
+                        T_matrix=transition)
+                else:
+                    mytestGMM.expectation_step(
+                        T_matrix=transition)
+                mytestGMM.maximization_step()
+                print("it: {0:d} likelihood  function {1:e}".format(i, mytestGMM.get_likelihood()))
+        except Exception as e:
+            print("error: ", e)
+            success = False
+
+    # mytestGMM.save('references/meantest', 'references/covartest', 'references/pitest')
+    # mix_mean_covar_pi('references/mean.npy', 'references/covar.npy', 'references/pi.npy',
+    #     'references/meantest.npy', 'references/covartest.npy', 'references/pitest.npy',
+    #     1.0/run_number)
     means = np.load('references/meantest.npy')
     covar = np.load('references/covartest.npy')
-    for prim in [Pr.none, Pr.fsm, Pr.contact, Pr.alignthreads, Pr.screw]:
+    for prim in [Pr.none, Pr.fsm, Pr.align, Pr.engage, Pr.screw, Pr.tighten]:
         print("Stats: ", prim)
-        for var in ('ang_vel_z', 'F_z'):
+        for var in ('ang_vel_z', 'M_z'):
             print("{0:s}: mu: {1:f} stdev ".format(var,means[prim.value][var_idxs[var]]),
             np.sqrt(covar[prim.value,var_idxs[var],var_idxs[var]])) 
     os.system('python3 plot_data.py '+str(run_number))

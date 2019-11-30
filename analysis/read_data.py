@@ -62,6 +62,7 @@ def read_data1(runfile,forcebias,t0=0,t1=-1,output_fmt='',tpairlist=None):
     #final pose
     p1_final = dat[-1,[7,5,6]]
     t=dat[:,0] - dat[0,0]
+    FM=dat[0,9:15]
     #now truncate the data
     if tpairlist:
         idxs=np.array([],dtype=int)
@@ -76,7 +77,7 @@ def read_data1(runfile,forcebias,t0=0,t1=-1,output_fmt='',tpairlist=None):
         dat = dat[i0:i1]
     dat = dat[::25]
     t=dat[:,0] - dat[0,0]
-    FM=np.genfromtxt(forcebias)
+    # FM=np.genfromtxt(forcebias)
     F0=FM[:3]
     M0=FM[3:]
     N = dat.shape[0]

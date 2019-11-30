@@ -12,9 +12,10 @@ dt = 0.1
 class Pr(enum.Enum): 
     none = 0
     fsm = 1
-    contact = 2
-    alignthreads = 3
+    align = 2
+    engage = 3
     screw = 4
+    tighten = 5
 def sample_primitive(p):
   #p probability distribution of which primitive
   return bisect.bisect(np.cumsum(p), random.random())
