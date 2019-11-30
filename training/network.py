@@ -5,7 +5,7 @@
  Output:  transition model that determines what is the best next primitive to use 
             given the current state variables
  
- Jonathan Ho and Elena Galbally, Fall 2019
+Elena Galbally and Jonathan Ho, Fall 2019
 ======================================================================================"""
 
 """ --------------------------------------------------------------------------------------
@@ -19,6 +19,7 @@ import torch.nn.functional as F  # a lower level (compared to torch.nn) interfac
 from torch.utils.data import Dataset, DataLoader
 from time import time
 import numpy as np
+import argparse
 
 """ --------------------------------------------------------------------------------------
    Hyperparameters
@@ -32,15 +33,54 @@ EPSILON = 1e-8
 INPUT_DIM = 19
 OUTPUT_DIM = 6 #num of primitives
 
+TRAIN_RUNS = 17 #actually 15 because they start at 1 and are missing 11
+TOTAL_RUNS = 20
 SAVE_INTERVAL = 10
-PRINT_INTERVAL = 1
+PRINT_INTERVAL = 30
+
+""" --------------------------------------------------------------------------------------
+   Command Line Arguments
+-----------------------------------------------------------------------------------------"""
+# parser = argparse.ArgumentParser(description='PyTorch Transistion Model Training')
+# parser.add_argument('--resume', default='', type=str, metavar='PATH',
+#                     help='path to latest checkpoint (default: none)')
+# parser.add_argument('--traindata', required = True, type=str, metavar='TRAIN_DATA_FOLDER',
+#                     help='path to training data')
+# parser.add_argument('--testdata', required = True, type=str, metavar='TEST_DATA_FOLDER',
+#                     help='path to test data')
+# args = parser.parse_args()
+# TRAIN_DATA_FOLDER = args.traindata
+# TEST_DATA_FOLDER = args.testdata
 
 """ --------------------------------------------------------------------------------------
    Training, Test Sets and Pytorch environment
 -----------------------------------------------------------------------------------------"""
-trainSet = PrimitiveTransitionsSet('../data2/run10_labelled')
+# For training and testing on multiple runs
+train_data_list = []
+test_data_list = []
+
+for train_run_number in range(TRAIN_RUNS):
+    if (train_run_number == 0):
+        print('INFO: Runs start at #1 not #0')
+    elif (train_run_number == 11):
+        print('INFO: We lost the data from run #11')
+    else:
+        newString = '../data/medium_cap/auto_labelled/run{:d}_labelled'.format(train_run_number)
+        train_data_list.append(newString)
+
+for test_run_number in range(TRAIN_RUNS,TOTAL_RUNS):
+    newString = '../data/medium_cap/auto_labelled/run{:d}_labelled'.format(train_run_number)
+    test_data_list.append(newString)
+
+trainSet = PrimitiveTransitionsSet(train_data_list)
+testSet = PrimitiveTransitionsSet(test_data_list)
+
+# For training and testing on single runs
+# trainSet = PrimitiveTransitionsSet('../data/medium_cap/auto_labelled/run10_labelled')
+# testSet = PrimitiveTransitionsSet('../data/medium_cap/auto_labelled/run12_labelled')
+
+# Pytorch data set
 trainSet_loader = DataLoader(trainSet, batch_size = BATCH_SIZE, shuffle = True, num_workers = 1)
-testSet = PrimitiveTransitionsSet('../data2/run10_labelled')
 testSet_loader = DataLoader(testSet, batch_size = BATCH_SIZE, shuffle = False, num_workers = 1)
 
 """ --------------------------------------------------------------------------------------
@@ -128,11 +168,11 @@ def test():
     # Batch accuracy
     accuracy = 100 * correct / total
     
-    # Print accuracy and loss
+    # ----- Print accuracy and loss
     print('[--TEST--] Avg Loss: {:.2e}. Accuracy: {:d}'.format(avg_test_loss, accuracy))
 
     # ----- Save ouput: prediction        
-    np.savetxt('test_set_labels/predicted_labels.txt', allPredictions, "%i")
+    np.savetxt('test_set_labels/predicted_labels_multiRun.txt', allPredictions, "%i")
     
     return avg_test_loss, accuracy
 
@@ -191,15 +231,15 @@ def train(num_epochs, save_interval = SAVE_INTERVAL, print_interval=PRINT_INTERV
         avg_test_loss, accuracy = test() # evaluate model on test set
         traindat[ep,1] = accuracy
         traindat[ep,3] = avg_test_loss 
-        np.savetxt("model_loss_and_accuracy/accuracy_loss.txt", 
+        # ----- Save model accuracy and loss
+        np.savetxt("model_loss_and_accuracy/accuracy_loss_multiRun.txt", 
             traindat, ("%i", "%.d", "%.2e", "%.2e"), header='epoch test_accuracy train_avg_loss test_avg_loss')
     
-    # Save final checkpoint   
+    # ----- Save final checkpoint   
     save_checkpoint('checkpoints/transitionModel-%i.pth' % iteration, model, optimizer)
 
 """ --------------------------------------------------------------------------------------
    Main
 -----------------------------------------------------------------------------------------"""
 if __name__ == "__main__":   
-    # load_checkpoint('ballnet-1070.pth', model, optimizer)
     train(NUM_EPOCHS)
