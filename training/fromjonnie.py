@@ -9,6 +9,7 @@ class NeuralNetwork:
 			device = 
 			lossCriterion = 
 		elif
+	def load_datasets(self):
 	def train(self, nEpochs):
 		#wherever model, optimizer, device, losscriterion is used changed to self.model, self.optimizer
 	def test(self):
