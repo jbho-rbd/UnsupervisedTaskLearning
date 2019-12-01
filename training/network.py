@@ -17,9 +17,10 @@ import torch.nn as nn            # containing various building blocks for your n
 import torch.optim as optim      # implementing various optimization algorithms
 import torch.nn.functional as F  # a lower level (compared to torch.nn) interface
 from torch.utils.data import Dataset, DataLoader
-from time import time
+# from time import time
 import numpy as np
 import argparse
+import time
 
 """ --------------------------------------------------------------------------------------
    Hyperparameters
@@ -30,40 +31,49 @@ LEARNING_RATE = 0.01
 BETA_1 = 0.9
 BETA_2 = 0.999
 EPSILON = 1e-8
-INPUT_DIM = 19
-OUTPUT_DIM = 6 #num of primitives
 
-TRAIN_RUNS = 17 #actually 15 because they start at 1 and are missing 11
+INPUT_DIM = 19
+NUM_CLASSES = 6 #num of primitives
+
+TRAIN_RUNS = 17 #actually 14 because it starts at 1, we are missing 11 and 16 was trash
 TOTAL_RUNS = 20
+
 SAVE_INTERVAL = 10
 PRINT_INTERVAL = 30
+
+modelName = 'logisticRegression'
 
 """ --------------------------------------------------------------------------------------
    Command Line Arguments
 -----------------------------------------------------------------------------------------"""
-# parser = argparse.ArgumentParser(description='PyTorch Transistion Model Training')
+parser = argparse.ArgumentParser(description='PyTorch Transistion Model Training')
 # parser.add_argument('--resume', default='', type=str, metavar='PATH',
 #                     help='path to latest checkpoint (default: none)')
 # parser.add_argument('--traindata', required = True, type=str, metavar='TRAIN_DATA_FOLDER',
 #                     help='path to training data')
 # parser.add_argument('--testdata', required = True, type=str, metavar='TEST_DATA_FOLDER',
 #                     help='path to test data')
-# args = parser.parse_args()
+parser.add_argument('--modelid', required = True, type=int, metavar='MODEL_ID',
+                    help='1(linear), 2(VGG16), 3(resnet18)')
+args = parser.parse_args()
+MODEL_ID = args.modelid 
 # TRAIN_DATA_FOLDER = args.traindata
 # TEST_DATA_FOLDER = args.testdata
 
 """ --------------------------------------------------------------------------------------
-   Training, Test Sets and Pytorch environment
+   Training, Test Sets and Pytorch DataSet
 -----------------------------------------------------------------------------------------"""
-# For training and testing on multiple runs
+# A) ---------- For training and testing on multiple runs
 train_data_list = []
 test_data_list = []
 
 for train_run_number in range(TRAIN_RUNS):
     if (train_run_number == 0):
-        print('INFO: Runs start at #1 not #0')
+        print('[INFO] Runs start at #1 not #0')
     elif (train_run_number == 11):
-        print('INFO: We lost the data from run #11')
+        print('[INFO] We lost the data from run #11')
+    elif (train_run_number == 16):
+        print('[INFO] run #16 was a piece of shit')
     else:
         newString = '../data/medium_cap/auto_labelled/run{:d}_labelled'.format(train_run_number)
         train_data_list.append(newString)
@@ -75,7 +85,7 @@ for test_run_number in range(TRAIN_RUNS,TOTAL_RUNS):
 trainSet = PrimitiveTransitionsSet(train_data_list)
 testSet = PrimitiveTransitionsSet(test_data_list)
 
-# For training and testing on single runs
+# B) ---------- For training and testing on single runs
 # trainSet = PrimitiveTransitionsSet('../data/medium_cap/auto_labelled/run10_labelled')
 # testSet = PrimitiveTransitionsSet('../data/medium_cap/auto_labelled/run12_labelled')
 
@@ -84,12 +94,44 @@ trainSet_loader = DataLoader(trainSet, batch_size = BATCH_SIZE, shuffle = True, 
 testSet_loader = DataLoader(testSet, batch_size = BATCH_SIZE, shuffle = False, num_workers = 1)
 
 """ --------------------------------------------------------------------------------------
+   Select Model - Training Architecture
+-----------------------------------------------------------------------------------------"""
+def selectModel(MODEL_ID):
+    if MODEL_ID == 1:
+        # BATCH_SIZE = 1024
+        # NUM_EPOCHS = 100
+        # LEARNING_RATE = 1e-1 #start from learning rate after 40 epochs
+        # ALPHA = 6
+        # model = nn.Sequential()
+        # model.add_module("linear", torch.nn.Linear(224*224*3, NUM_CLASSES, bias=False))
+        modelName = "logisticRegression"
+    # elif MODEL_ID == 2:
+    #     BATCH_SIZE = 128
+    #     NUM_EPOCHS = 50
+    #     LEARNING_RATE = 1e-1 #start from learning rate after 40 epochs
+    #     ALPHA = 6
+    #     model = models.VGG('VGG16')
+    #     model.fc = nn.Linear(512, NUM_CLASSES)
+    #     modelName = "VGG16"
+    # elif MODEL_ID == 3:
+    #     BATCH_SIZE = 128
+    #     NUM_EPOCHS = 72
+    #     LEARNING_RATE = 1e-1 #start from learning rate after 40 epochs
+    #     ALPHA = 6
+    #     model = models.resnet18(pretrained=False)
+    #     model.fc = nn.Linear(512, NUM_CLASSES) #nn.Linear(input_size, num_classes)
+    #     modelName = "resnet18_decay_adam"
+    else:
+        raise ValueError('Model ID must be an integer between 1 and 3')
+    # return model, modelName, BATCH_SIZE, NUM_EPOCHS, LEARNING_RATE, ALPHA
+    return modelName
+""" --------------------------------------------------------------------------------------
    nn.Module child class: Initializer and Methods
 -----------------------------------------------------------------------------------------"""
 class Net(nn.Module):
     def __init__(self): # Logistic Regression
         super(Net, self).__init__()
-        self.linear = torch.nn.Linear(INPUT_DIM, OUTPUT_DIM) 
+        self.linear = torch.nn.Linear(INPUT_DIM, NUM_CLASSES) 
     def forward(self, x):
         # print(x.shape)
         x = self.linear(x)
@@ -108,13 +150,20 @@ optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE, betas=(BETA_1, BETA
 # optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
 
 """ --------------------------------------------------------------------------------------
-   Network Related Utility Functions
+    Network Related Utility Functions
    ----------------------------------
+   * create_txt_file_name
    * save_checkpoint
    * load_checkpoint
    * test
    * train
 ------------------------------------------------------------------------------------------- """
+def create_txt_file_name(folder_path, description_string, model_name):
+    timestamp_string = time.strftime("%Y%m%d-%H%M%S") 
+    filename = folder_path + model_name + '_' + timestamp_string + '_' + description_string + '.txt'
+    return filename
+
+"""-------------------------------------------------------------------------------------------"""
 def save_checkpoint(checkpoint_path, model, optimizer):
     # state_dict: a Python dictionary object that:
     #   - for a model, maps each layer to its parameter tensor;
@@ -133,7 +182,7 @@ def load_checkpoint(checkpoint_path, model, optimizer):
     print('model loaded from %s' % checkpoint_path)
 
 """-------------------------------------------------------------------------------------------"""
-def test():
+def test(current_epoch):
     model.eval()  # set evaluation mode
     batch_test_loss = 0.0
     total = 0
@@ -171,8 +220,10 @@ def test():
     # ----- Print accuracy and loss
     print('[--TEST--] Avg Loss: {:.2e}. Accuracy: {:d}'.format(avg_test_loss, accuracy))
 
-    # ----- Save ouput: prediction        
-    np.savetxt('test_set_labels/predicted_labels_multiRun.txt', allPredictions, "%i")
+    # ----- Save predictions on last epoch
+    if current_epoch == (NUM_EPOCHS-1):
+        fileNameLabels = create_txt_file_name('./test_set_labels/', 'predictedLabels', modelName)
+        np.savetxt(fileNameLabels, allPredictions, "%i")
     
     return avg_test_loss, accuracy
 
@@ -184,7 +235,7 @@ def train(num_epochs, save_interval = SAVE_INTERVAL, print_interval=PRINT_INTERV
     batch_train_loss = 0.0
 
     for ep in range(num_epochs):        
-        start = time()     
+        start = time.time()     
         for batch_idx, (data, label) in enumerate(trainSet_loader):
            
             # bring data to the computing device, e.g. GPU
@@ -205,7 +256,8 @@ def train(num_epochs, save_interval = SAVE_INTERVAL, print_interval=PRINT_INTERV
 
             # ----- Save checkpoint (binary file): iteration, model, optimizer
             if iteration % save_interval == 0 and iteration > 0:
-                save_checkpoint('checkpoints/transitionModel-%i.pth' % iteration, model, optimizer) 
+                save_checkpoint('checkpoints/{:s}/{:s}-{:d}.pth'.format(modelName, modelName, iteration), 
+                    model, optimizer) 
 
             # ----- Print epoch progress
             if iteration % print_interval == 0:
@@ -219,7 +271,7 @@ def train(num_epochs, save_interval = SAVE_INTERVAL, print_interval=PRINT_INTERV
             @end of each epoch
         ------------------------"""
         # Print epoch duration
-        end = time()
+        end = time.time()
         print('{:.2f}s'.format(end-start)) 
         # Calculate and print average loss
         avg_train_loss = batch_train_loss/len(trainSet_loader.dataset)
@@ -228,15 +280,18 @@ def train(num_epochs, save_interval = SAVE_INTERVAL, print_interval=PRINT_INTERV
         #    - epoch, test_accuracy, train_loss, test_loss
         traindat[ep,0] = ep # current epoch number
         traindat[ep,2] = avg_train_loss
-        avg_test_loss, accuracy = test() # evaluate model on test set
+        avg_test_loss, accuracy = test(ep) # evaluate model on test set
         traindat[ep,1] = accuracy
         traindat[ep,3] = avg_test_loss 
-        # ----- Save model accuracy and loss
-        np.savetxt("model_loss_and_accuracy/accuracy_loss_multiRun.txt", 
-            traindat, ("%i", "%.d", "%.2e", "%.2e"), header='epoch test_accuracy train_avg_loss test_avg_loss')
     
-    # ----- Save final checkpoint   
-    save_checkpoint('checkpoints/transitionModel-%i.pth' % iteration, model, optimizer)
+    # ----- Save model accuracy and loss
+    fileNameAccuracy = create_txt_file_name('./model_loss_and_accuracy/', 'accuracyAndLoss', modelName)
+    np.savetxt(fileNameAccuracy, traindat, ("%i", "%.d", "%.2e", "%.2e"), 
+        header='epoch test_accuracy train_avg_loss test_avg_loss')
+    
+    # ----- Save final checkpoint 
+    save_checkpoint('checkpoints/{:s}/{:s}-{:d}.pth'.format(modelName, modelName, iteration), 
+        model, optimizer)
 
 """ --------------------------------------------------------------------------------------
    Main
