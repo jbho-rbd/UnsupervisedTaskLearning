@@ -26,8 +26,9 @@ import time
 -----------------------------------------------------------------------------------------"""
 INPUT_DIM = 19
 NUM_CLASSES = 6 #num of primitives
-TRAIN_RUNS = 17 #actually 14 because it starts at 1, we are missing 11 and 16 was trash
+TRAIN_RUNS = 3 #actually 14 because it starts at 1, we are missing 11 and 16 was trash
 TOTAL_RUNS = 20
+MID_LAYER_DIM = 100
 
 """ --------------------------------------------------------------------------------------
    Command Line Arguments: Network Selection
@@ -46,6 +47,8 @@ def create_txt_file_name(folder_path, description_string, model_name):
     filename = folder_path + model_name + '_' + timestamp_string + '_' + description_string + '.txt'
     return filename
 
+# def save_run_hyperparameters():
+
 """ --------------------------------------------------------------------------------------
    Network Architectures (nn.Module child class) 
 -----------------------------------------------------------------------------------------"""
@@ -58,13 +61,15 @@ class LogisticRegression(nn.Module):
         return x
 
 class SuperNet(nn.Module):
-    def __init__(self): # Logistic Regression
+    def __init__(self): 
         super(SuperNet, self).__init__()
-        self.linear = torch.nn.Linear(INPUT_DIM, NUM_CLASSES) 
+        self.linear1 = torch.nn.Linear(INPUT_DIM, MID_LAYER_DIM) 
+        self.linear2 = torch.nn.Linear(MID_LAYER_DIM, NUM_CLASSES) 
     def forward(self, x):
         # print(x.shape)
-        x = self.linear(x)
-        # x = torch.sigmoid(x)
+        x = self.linear1(x)
+        x = torch.sigmoid(x)
+        x = self.linear2(x)
         return x
 
 """ --------------------------------------------------------------------------------------
@@ -89,7 +94,7 @@ class NeuralNetwork:
         if MODEL_ID == 1:
             self.MODEL_NAME = "logisticRegression"
             self.BATCH_SIZE = 32
-            self.NUM_EPOCHS = 20
+            self.NUM_EPOCHS = 100
             self.SAVE_INTERVAL = 10
             self.PRINT_INTERVAL = 30
             LEARNING_RATE = 0.01
@@ -106,9 +111,9 @@ class NeuralNetwork:
         elif MODEL_ID == 2:
             self.MODEL_NAME = "superNet"
             self.BATCH_SIZE = 32
-            self.NUM_EPOCHS = 20
+            self.NUM_EPOCHS = 200
             self.SAVE_INTERVAL = 10
-            self.PRINT_INTERVAL = 30
+            self.PRINT_INTERVAL = 40
             LEARNING_RATE = 0.01
             BETA_1 = 0.9
             BETA_2 = 0.999
@@ -142,7 +147,8 @@ class NeuralNetwork:
                 newString = '../data/medium_cap/auto_labelled/run{:d}_labelled'.format(train_run_number)
                 train_data_list.append(newString)
 
-        for test_run_number in range(TRAIN_RUNS,TOTAL_RUNS):
+        # for test_run_number in range(TRAIN_RUNS,TOTAL_RUNS):
+        for test_run_number in range(17,TOTAL_RUNS):
             newString = '../data/medium_cap/auto_labelled/run{:d}_labelled'.format(train_run_number)
             test_data_list.append(newString)
 
@@ -214,7 +220,7 @@ class NeuralNetwork:
         accuracy = 100 * correct / total
         
         # ----- Print accuracy and loss
-        print('[--TEST--] Avg Loss: {:.2e}. Accuracy: {:d}'.format(avg_test_loss, accuracy))
+        # print('[--TEST--] Avg Loss: {:.2e}. Accuracy: {:d}'.format(avg_test_loss, accuracy))
 
         # ----- Save predictions on last epoch
         if current_epoch == (self.NUM_EPOCHS-1):
@@ -230,9 +236,9 @@ class NeuralNetwork:
         self.model.train()  # set training mode
         iteration = 0
         traindat = np.zeros((self.NUM_EPOCHS, 4)) 
-        batch_train_loss = 0.0
 
         for ep in range(self.NUM_EPOCHS):        
+            batch_train_loss = 0.0
             start = time.time()     
             for batch_idx, (data, label) in enumerate(self.trainSet_loader):
                
@@ -257,10 +263,10 @@ class NeuralNetwork:
                     self.save_checkpoint('checkpoints/{:s}/{:s}-{:d}.pth'.format(self.MODEL_NAME, self.MODEL_NAME, iteration)) 
 
                 # ----- Print epoch progress
-                if iteration % self.PRINT_INTERVAL == 0:
-                    print('Epoch: {} [{}/{} ({:.0f}%)]'.format(ep, 
-                        batch_idx * self.BATCH_SIZE, len(self.trainSet_loader.dataset),
-                        100. * batch_idx / len(self.trainSet_loader)))
+                # if iteration % self.PRINT_INTERVAL == 0:
+                #     print('Epoch: {} [{}/{} ({:.0f}%)]'.format(ep, 
+                #         batch_idx * self.BATCH_SIZE, len(self.trainSet_loader.dataset),
+                #         100. * batch_idx / len(self.trainSet_loader)))
 
                 iteration += 1
             
@@ -269,7 +275,7 @@ class NeuralNetwork:
             ------------------------"""
             # Print epoch duration
             end = time.time()
-            print('{:.2f}s'.format(end-start)) 
+            # print('{:.2f}s'.format(end-start)) 
             # Calculate and print average loss
             avg_train_loss = batch_train_loss/len(self.trainSet_loader.dataset)
             print('[--TRAIN--] Avg Loss: {:.2e}'.format(avg_train_loss))    
