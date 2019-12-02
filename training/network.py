@@ -27,8 +27,8 @@ import matplotlib.pyplot as plt
 -----------------------------------------------------------------------------------------"""
 INPUT_DIM = 19
 NUM_CLASSES = 6 #num of primitives
-TRAIN_RUNS = [5,19] #actually 14 because it starts at 1, we are missing 11 and 16 was trash
-TEST_RUNS = [1,4]
+TRAIN_RUNS = [1,14] #actually 14 because it starts at 1, we are missing 11 and 16 was trash
+TEST_RUNS = [15, 19]
 MID_LAYER_DIM = 100
 
 """ --------------------------------------------------------------------------------------
@@ -125,10 +125,10 @@ class NeuralNetwork:
             self.OPTIM_NAME = "Adam"
             self.LOSS_NAME = "CrossEntropy"
             self.BATCH_SIZE = 32
-            self.NUM_EPOCHS = 100
+            self.NUM_EPOCHS = 200
             self.SAVE_INTERVAL = 10
             self.PRINT_INTERVAL = 30
-            self.LEARNING_RATE = 0.01
+            self.LEARNING_RATE = 0.02
             self.BETA_1 = 0.9
             self.BETA_2 = 0.999
             self.EPSILON = 1e-8
@@ -143,11 +143,11 @@ class NeuralNetwork:
             self.MODEL_NAME = "superNet"
             self.OPTIM_NAME = "Adam"
             self.LOSS_NAME = "CrossEntropy"
-            self.BATCH_SIZE = 32
-            self.NUM_EPOCHS = 200
-            self.SAVE_INTERVAL = 10
+            self.BATCH_SIZE = 64
+            self.NUM_EPOCHS = 400
+            self.SAVE_INTERVAL = 200
             self.PRINT_INTERVAL = 40
-            self.LEARNING_RATE = 0.01
+            self.LEARNING_RATE = 0.02
             self.BETA_1 = 0.9
             self.BETA_2 = 0.999
             self.EPSILON = 1e-8
@@ -156,7 +156,7 @@ class NeuralNetwork:
             self.lossCriterion = nn.CrossEntropyLoss()  
             self.optimizer = optim.Adam(self.model.parameters(), 
                 lr=self.LEARNING_RATE, betas=(self.BETA_1, self.BETA_2), 
-                eps=self.EPSILON, weight_decay=0, amsgrad=False)
+                eps=self.EPSILON, weight_decay=0.00, amsgrad=False)
         
         else:
             raise ValueError('Model ID must be an integer between 1 and 2')
@@ -269,10 +269,10 @@ class NeuralNetwork:
         # Average batch loss
         avg_test_loss = batch_test_loss/len(self.testSet_loader)
         # Batch accuracy
-        accuracy = 100 * correct / total
+        accuracy = 100.0 * correct / total
         
         # ----- Print accuracy and loss
-        # print('[--TEST--] Avg Loss: {:.2e}. Accuracy: {:d}'.format(avg_test_loss, accuracy))
+        print('[--TEST--] Avg Loss: {:.2e}. Accuracy: {:.2f} %'.format(avg_test_loss, accuracy))
 
         # ----- Save predictions on last epoch
         if current_epoch == (self.NUM_EPOCHS-1):
@@ -287,17 +287,25 @@ class NeuralNetwork:
     def train(self):
         self.model.train()  # set training mode
         iteration = 0
-        traindat = np.zeros((self.NUM_EPOCHS, 4)) 
-
+        traindat = np.zeros((self.NUM_EPOCHS, 5)) 
+        notFirst = False
         for ep in range(self.NUM_EPOCHS):        
             batch_train_loss = 0.0
             start = time.time()     
+            total = 0
+            correct = 0
             for batch_idx, (data, label) in enumerate(self.trainSet_loader):
                
                 # bring data to the computing device, e.g. GPU
                 data, label = data.to(self.device), label.to(self.device)
                 # forward pass
                 output = self.model(data)
+                _, predicted = torch.max(output.data, 1)
+                # Total number of labels
+                total += label.size(0)
+                # Total correct predictions
+                correct += (predicted == label).sum()
+
                 # compute loss: negative log-likelihood
                 train_loss = self.lossCriterion(output, label)
                 # total epoch training loss
@@ -308,7 +316,8 @@ class NeuralNetwork:
                 # accumulate (i.e. add) the gradients from this forward pass
                 train_loss.backward()
                 # performs a single optimization step (parameter update)
-                self.optimizer.step()
+                if(notFirst):
+                    self.optimizer.step()
 
                 # ----- Save checkpoint (binary file): iteration, model, optimizer
                 if iteration % self.SAVE_INTERVAL == 0 and iteration > 0:
@@ -321,7 +330,8 @@ class NeuralNetwork:
                 #         100. * batch_idx / len(self.trainSet_loader)))
 
                 iteration += 1
-            
+            notFirst = True
+            train_accuracy = correct * 100.0 / total
             """---------------------
                 @end of each epoch
             ------------------------"""
@@ -330,19 +340,20 @@ class NeuralNetwork:
             # print('{:.2f}s'.format(end-start)) 
             # Calculate and print average loss
             avg_train_loss = batch_train_loss/len(self.trainSet_loader)
-            print('[--TRAIN--] Avg Loss: {:.2e}'.format(avg_train_loss))    
+            print('[--TRAIN--] Avg Loss: {:.2e}, Accuracy {:.2f}% '.format(avg_train_loss, train_accuracy), end = "")    
             # Evaluate model on testSet and save epoch data
             #    - epoch, test_accuracy, train_loss, test_loss
             traindat[ep,0] = ep # current epoch number
             traindat[ep,2] = avg_train_loss
+            traindat[ep,4] = train_accuracy
             avg_test_loss, accuracy = self.test(ep) # evaluate model on test set
             traindat[ep,1] = accuracy
             traindat[ep,3] = avg_test_loss 
         
         # ----- Save model accuracy and loss
         fileNameAccuracy = create_txt_file_name('./model_loss_and_accuracy/', 'accuracyAndLoss', self.MODEL_NAME)
-        np.savetxt(fileNameAccuracy, traindat, ("%i", "%.d", "%.2e", "%.2e"), 
-            header='epoch test_accuracy train_avg_loss test_avg_loss')
+        np.savetxt(fileNameAccuracy, traindat, ("%i", "%.4f", "%.2e", "%.2e", "%.4f"), 
+            header='epoch test_accuracy train_avg_loss test_avg_loss train_accuracy')
         
         # ----- Save final checkpoint 
         self.save_checkpoint('checkpoints/{:s}/{:s}-{:d}.pth'.format(self.MODEL_NAME, self.MODEL_NAME, iteration))
