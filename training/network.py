@@ -20,6 +20,7 @@ from torch.utils.data import Dataset, DataLoader
 import numpy as np
 import argparse
 import time
+import matplotlib.pyplot as plt
 
 """ --------------------------------------------------------------------------------------
    Global Constants
@@ -44,8 +45,38 @@ MODEL_ID = args.modelid
 -----------------------------------------------------------------------------------------"""
 def create_txt_file_name(folder_path, description_string, model_name):
     timestamp_string = time.strftime("%Y%m%d-%H%M%S") 
-    filename = folder_path + model_name + '_' + timestamp_string + '_' + description_string + '.txt'
+    filename = folder_path + model_name + '_' + timestamp_string + '_' + description_string + ".txt"
     return filename    
+
+def create_fig_file_name(folder_path, description_string, model_name):
+    timestamp_string = time.strftime("%Y%m%d-%H%M%S") 
+    filename = folder_path + model_name + '_' + timestamp_string + '_' + description_string + ".png"
+    return filename 
+
+def plot_learning_curves(filename):
+    data = np.loadtxt(filename)
+    epoch = data[:,0]
+    test_accuracy = data[:,1]
+    training_loss = data[:,2]
+    test_loss = data[:,3]
+
+    plt.figure()
+    plt.plot(epoch, training_loss)
+    plt.plot(epoch, test_loss)
+    plt.yscale('log')
+    plt.xlabel('Epoch #')
+    plt.ylabel('Loss')
+    plt.legend(['training','test'], loc = 'upper right')
+    figureName = create_fig_file_name('./model_loss_and_accuracy/', 'lossFig', self.MODEL_NAME)
+    plt.savefig(figureName, dpi = 600)
+
+    plt.figure()
+    plt.plot(epoch, test_accuracy)
+    plt.xlabel('Epoch #')
+    plt.ylabel('Test Accuracy (%)')
+    figureName = create_fig_file_name('./model_loss_and_accuracy/', 'accuracyFig', self.MODEL_NAME)
+    plt.savefig(figureName, dpi = 600)
+    plt.show()
 
 """ --------------------------------------------------------------------------------------
    Network Architectures (nn.Module child class) 
@@ -190,9 +221,11 @@ class NeuralNetwork:
         """
         model, batch size, epochs, learning rate, loss, optimizer (betas, epsilon)
         """
-#         fileNameParameters = create_txt_file_name('./model_loss_and_accuracy/', 'hyperparameters', self.MODEL_NAME)
-#         np.savetxt(fileNameParameters, 'Model: {:s}\nBatch size: {:d}\nNum epochs: {:d}\nLearning rate: {:.4e}\nLoss: {:s}\nOptimizer: {:s} \tbetas: {:.4e},{:.4e}   epsilon: {:.4e}'.format(self.MODEL_NAME, self.BATCH_SIZE, self.NUM_EPOCHS, self.LEARNING_RATE,self.LOSS_NAME, self.OPTIM_NAME, self.BETA_1, self.BETA_2, self.EPSILON ))
-        
+        fileNameParameters = create_txt_file_name('./model_loss_and_accuracy/', 'hyperparameters', self.MODEL_NAME)
+        file_param = open(fileNameParameters,"w")
+        file_param.write('Model: {:s}\nBatch size: {:d}\nNum epochs: {:d}\nLearning rate: {:.4e}\nLoss: {:s}\nOptimizer: {:s} \t(betas:{:.4e},{:.4e}) (epsilon: {:.4e})'.format(self.MODEL_NAME, 
+                self.BATCH_SIZE, self.NUM_EPOCHS, self.LEARNING_RATE,self.LOSS_NAME, self.OPTIM_NAME, self.BETA_1, self.BETA_2, self.EPSILON ))
+         
     """---------------------
         Test
     ------------------------"""
@@ -316,3 +349,4 @@ if __name__ == "__main__":
     myNetwork.save_hyperparameters()
     myNetwork.load_datasets()
     myNetwork.train()
+    # myNetwork.plot_learning_curves()

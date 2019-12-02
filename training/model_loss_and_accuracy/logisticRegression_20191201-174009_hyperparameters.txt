@@ -1,0 +1,6 @@
+Model: logisticRegression
+Batch size: 32
+Num epochs: 100
+Learning rate: 1.0000e-02
+Loss: CrossEntropy
+Optimizer: Adam 	betas: 9.0000e-01 9.9900e-01   epsilon: 1.0000e-08
