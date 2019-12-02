@@ -27,8 +27,8 @@ import matplotlib.pyplot as plt
 -----------------------------------------------------------------------------------------"""
 INPUT_DIM = 19
 NUM_CLASSES = 6 #num of primitives
-TRAIN_RUNS = 3 #actually 14 because it starts at 1, we are missing 11 and 16 was trash
-TOTAL_RUNS = 20
+TRAIN_RUNS = [5,19] #actually 14 because it starts at 1, we are missing 11 and 16 was trash
+TEST_RUNS = [1,4]
 MID_LAYER_DIM = 100
 
 """ --------------------------------------------------------------------------------------
@@ -169,7 +169,7 @@ class NeuralNetwork:
         train_data_list = []
         test_data_list = []
 
-        for train_run_number in range(TRAIN_RUNS):
+        for train_run_number in range(TRAIN_RUNS[0], TRAIN_RUNS[1]+1):
             if (train_run_number == 0):
                 print('[INFO] Runs start at #1 not #0')
             elif (train_run_number == 11):
@@ -181,9 +181,16 @@ class NeuralNetwork:
                 train_data_list.append(newString)
 
         # for test_run_number in range(TRAIN_RUNS,TOTAL_RUNS):
-        for test_run_number in range(17,TOTAL_RUNS):
-            newString = '../data/medium_cap/auto_labelled/run{:d}_labelled'.format(test_run_number)
-            test_data_list.append(newString)
+        for test_run_number in range(TEST_RUNS[0], TEST_RUNS[1]+1):
+            if (test_run_number == 0):
+                print('[INFO] Runs start at #1 not #0')
+            elif (test_run_number == 11):
+                print('[INFO] We lost the data from run #11')
+            elif (test_run_number == 16):
+                print('[INFO] run #16 was a piece of shit')
+            else:
+                newString = '../data/medium_cap/auto_labelled/run{:d}_labelled'.format(test_run_number)
+                test_data_list.append(newString)
 
         trainSet = PrimitiveTransitionsSet(train_data_list)
         testSet = PrimitiveTransitionsSet(test_data_list)
