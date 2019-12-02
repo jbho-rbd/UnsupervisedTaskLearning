@@ -45,9 +45,7 @@ MODEL_ID = args.modelid
 def create_txt_file_name(folder_path, description_string, model_name):
     timestamp_string = time.strftime("%Y%m%d-%H%M%S") 
     filename = folder_path + model_name + '_' + timestamp_string + '_' + description_string + '.txt'
-    return filename
-
-# def save_run_hyperparameters():
+    return filename    
 
 """ --------------------------------------------------------------------------------------
    Network Architectures (nn.Module child class) 
@@ -93,37 +91,41 @@ class NeuralNetwork:
 
         if MODEL_ID == 1:
             self.MODEL_NAME = "logisticRegression"
+            self.OPTIM_NAME = "Adam"
+            self.LOSS_NAME = "CrossEntropy"
             self.BATCH_SIZE = 32
             self.NUM_EPOCHS = 100
             self.SAVE_INTERVAL = 10
             self.PRINT_INTERVAL = 30
-            LEARNING_RATE = 0.01
-            BETA_1 = 0.9
-            BETA_2 = 0.999
-            EPSILON = 1e-8
+            self.LEARNING_RATE = 0.01
+            self.BETA_1 = 0.9
+            self.BETA_2 = 0.999
+            self.EPSILON = 1e-8
             self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu") #check for GPU
             self.model = LogisticRegression().to(self.device)
             self.lossCriterion = nn.CrossEntropyLoss()  
             self.optimizer = optim.Adam(self.model.parameters(), 
-                lr=LEARNING_RATE, betas=(BETA_1, BETA_2), 
-                eps=EPSILON, weight_decay=0, amsgrad=False)
+                lr=self.LEARNING_RATE, betas=(self.BETA_1, self.BETA_2), 
+                eps=self.EPSILON, weight_decay=0, amsgrad=False)
     
         elif MODEL_ID == 2:
             self.MODEL_NAME = "superNet"
+            self.OPTIM_NAME = "Adam"
+            self.LOSS_NAME = "CrossEntropy"
             self.BATCH_SIZE = 32
             self.NUM_EPOCHS = 200
             self.SAVE_INTERVAL = 10
             self.PRINT_INTERVAL = 40
-            LEARNING_RATE = 0.01
-            BETA_1 = 0.9
-            BETA_2 = 0.999
-            EPSILON = 1e-8
+            self.LEARNING_RATE = 0.01
+            self.BETA_1 = 0.9
+            self.BETA_2 = 0.999
+            self.EPSILON = 1e-8
             self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu") #check for GPU
             self.model = SuperNet().to(self.device)
             self.lossCriterion = nn.CrossEntropyLoss()  
             self.optimizer = optim.Adam(self.model.parameters(), 
-                lr=LEARNING_RATE, betas=(BETA_1, BETA_2), 
-                eps=EPSILON, weight_decay=0, amsgrad=False)
+                lr=self.LEARNING_RATE, betas=(self.BETA_1, self.BETA_2), 
+                eps=self.EPSILON, weight_decay=0, amsgrad=False)
         
         else:
             raise ValueError('Model ID must be an integer between 1 and 2')
@@ -149,7 +151,7 @@ class NeuralNetwork:
 
         # for test_run_number in range(TRAIN_RUNS,TOTAL_RUNS):
         for test_run_number in range(17,TOTAL_RUNS):
-            newString = '../data/medium_cap/auto_labelled/run{:d}_labelled'.format(train_run_number)
+            newString = '../data/medium_cap/auto_labelled/run{:d}_labelled'.format(test_run_number)
             test_data_list.append(newString)
 
         trainSet = PrimitiveTransitionsSet(train_data_list)
@@ -180,7 +182,17 @@ class NeuralNetwork:
         self.model.load_state_dict(state['state_dict'])
         self.optimizer.load_state_dict(state['optimizer'])
         print('model loaded from %s' % checkpoint_path)
-
+    
+    """-----------------------
+        Save hyperparameters
+    --------------------------"""
+    def save_hyperparameters(self):
+        """
+        model, batch size, epochs, learning rate, loss, optimizer (betas, epsilon)
+        """
+#         fileNameParameters = create_txt_file_name('./model_loss_and_accuracy/', 'hyperparameters', self.MODEL_NAME)
+#         np.savetxt(fileNameParameters, 'Model: {:s}\nBatch size: {:d}\nNum epochs: {:d}\nLearning rate: {:.4e}\nLoss: {:s}\nOptimizer: {:s} \tbetas: {:.4e},{:.4e}   epsilon: {:.4e}'.format(self.MODEL_NAME, self.BATCH_SIZE, self.NUM_EPOCHS, self.LEARNING_RATE,self.LOSS_NAME, self.OPTIM_NAME, self.BETA_1, self.BETA_2, self.EPSILON ))
+        
     """---------------------
         Test
     ------------------------"""
@@ -215,7 +227,7 @@ class NeuralNetwork:
                 batch_test_loss += test_loss.item() 
             
         # Average batch loss
-        avg_test_loss = batch_test_loss/len(self.testSet_loader.dataset)
+        avg_test_loss = batch_test_loss/len(self.testSet_loader)
         # Batch accuracy
         accuracy = 100 * correct / total
         
@@ -277,7 +289,7 @@ class NeuralNetwork:
             end = time.time()
             # print('{:.2f}s'.format(end-start)) 
             # Calculate and print average loss
-            avg_train_loss = batch_train_loss/len(self.trainSet_loader.dataset)
+            avg_train_loss = batch_train_loss/len(self.trainSet_loader)
             print('[--TRAIN--] Avg Loss: {:.2e}'.format(avg_train_loss))    
             # Evaluate model on testSet and save epoch data
             #    - epoch, test_accuracy, train_loss, test_loss
@@ -301,5 +313,6 @@ class NeuralNetwork:
 -----------------------------------------------------------------------------------------"""
 if __name__ == "__main__":   
     myNetwork = NeuralNetwork(MODEL_ID)
+    myNetwork.save_hyperparameters()
     myNetwork.load_datasets()
     myNetwork.train()
