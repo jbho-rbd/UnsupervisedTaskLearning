@@ -25,7 +25,8 @@ import matplotlib.pyplot as plt
 """ --------------------------------------------------------------------------------------
    Global Constants
 -----------------------------------------------------------------------------------------"""
-INPUT_DIM = 19
+# INPUT_DIM = 19
+INPUT_DIM = 19*5
 NUM_CLASSES = 6 #num of primitives
 TRAIN_RUNS = [1,14] #actually 14 because it starts at 1, we are missing 11 and 16 was trash
 TEST_RUNS = [15, 19]

@@ -37,7 +37,7 @@ def plot_learning_curves(f1,f2,f3):
     f_accuracy.set_tight_layout(True)
     plt.tight_layout()
     nEpochs = 40
-    names = ['Logistic Regression', '2 Layer', '2 Layer Regu']
+    names = ['Logistic Regression', '2 Layer', '2 Layer Regu + history']
     color = ['C0', 'C1', 'C2']
     for i, filename in enumerate([f1, f2, f3]):
         data = np.loadtxt('./final_figures/' + filename + '.txt')
