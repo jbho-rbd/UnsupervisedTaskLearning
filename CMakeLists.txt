@@ -88,4 +88,4 @@ set(RUBBERDUCKY_APPLICATIONS_COMMON_LIBRARIES
 # add apps and subdirectories
 # --------------------------------------------
 set (RUBBERDUCKY_APPLICATIONS_BINARY_DIR ${PROJECT_SOURCE_DIR}/bin)
-add_subdirectory(01-hapticData1Robot)
+add_subdirectory(task_bottle_cap)

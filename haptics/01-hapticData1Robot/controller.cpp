@@ -33,7 +33,7 @@ using namespace std;
 using namespace Eigen;
 
 //// Define robots ////
- const string robot_file = "../resources/01-hapticData1Robot/panda_arm.urdf";
+ const string robot_file = "../resources/task_bottle_cap/panda_arm.urdf";
  const string robot_name = "panda";
 
 /* --------------------------------------------------------------------------------------
