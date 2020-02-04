@@ -2,14 +2,16 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader
 
+# ---- Constants
 NUM_LABEL_COLUMNS = 1 # switch according to number used in task
+HISTORY_WINDOW = 8
 
 class PrimitiveTransitionsSet(Dataset):
     """ 
     Customized dataloader for our primitive transitions dataset 
 
     """
-    def __init__(self, dataList, singleRunFlag=False):
+    def __init__(self, dataList, singleRunFlag=False, historyFlag=True):
         """ Initialize the dataloader. We transform the np arrays 
         to torch tensors and also floats.
 
@@ -29,33 +31,35 @@ class PrimitiveTransitionsSet(Dataset):
                 exit()
 
         for i, data in enumerate(dataList):
-            dataArray = np.loadtxt(data) # dataArray is an (N,20) numpy array
-            
+            dataArray = np.loadtxt(data) # dataArray is an (N,20) numpy array       
             numVars = dataArray.shape[1]
             numDataVectors = dataArray.shape[0]
             numStateVars = numVars - NUM_LABEL_COLUMNS
             
-            for j in range(5,dataArray.shape[0]):
-                if i == 0 and j==5:
-                    # Associate the state @t with the label @t+1 because we want to learn:
-                    # what the next primitive should be given the last state observation
-                    # states = dataArray[:-1,0:numStateVars]
-                    # labels = dataArray[1:,-1]
+            if historyFlag:
+                for j in range(HISTORY_WINDOW,dataArray.shape[0]):
+                    if i == 0 and j==HISTORY_WINDOW:
+                        # Associate the last N states with the label @t+1 because we want to learn:
+                        # what the next primitive should be given the last N state observations
+                        states = dataArray[j-HISTORY_WINDOW:j,0:numStateVars]
+                        states = np.reshape(states, (1,numStateVars*HISTORY_WINDOW)) #flatten the input from Nx19 to 1x(Nx19)
+                        labels = dataArray[j,-1]
+                    else: 
+                        single_run_states = dataArray[j-HISTORY_WINDOW:j,0:numStateVars]
+                        single_run_states = np.reshape(single_run_states, numStateVars*HISTORY_WINDOW) 
+                        single_run_labels = dataArray[j,-1]
+                        states = np.vstack((states, single_run_states))
+                        labels = np.hstack((labels, single_run_labels))
+            else:
+                # Associate the state @t with the label @t+1 because we want to learn:
+                # what the next primitive should be given the last state observation
+                if i == 0:
+                    states = dataArray[:-1,0:numStateVars]
+                    labels = dataArray[1:,-1]
+                else:
+                    single_run_states = dataArray[:-1,0:numStateVars]
+                    single_run_labels = dataArray[1:,-1]
 
-                    # Associate the last 5 states with the label @t+1 because we want to learn:
-                    # what the next primitive should be given the last 5 state observations
-                    states = dataArray[j-5:j,0:numStateVars]
-                    states = np.reshape(states, (1,numStateVars*5)) #flatten the input from 5x19 to 1x(5x19)
-                    labels = dataArray[j,-1]
-                else: 
-                    single_run_states = dataArray[j-5:j,0:numStateVars]
-                    single_run_states = np.reshape(single_run_states, numStateVars*5) #flatten the input from 5x19 to (5x19)x1
-                    single_run_labels = dataArray[j,-1]
-                    # single_run_states = dataArray[:-1,0:numStateVars]
-                    # single_run_labels = dataArray[1:,-1]
-                    states = np.vstack((states, single_run_states))
-                    labels = np.hstack((labels, single_run_labels))
-        
         self.states = torch.from_numpy(states).float()
         self.labels = torch.from_numpy(labels).long()  
         # self.len = numDataVectors - 1 #to account for the @t, @t-1 shift 

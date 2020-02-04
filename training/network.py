@@ -25,11 +25,11 @@ import matplotlib.pyplot as plt
 """ --------------------------------------------------------------------------------------
    Global Constants
 -----------------------------------------------------------------------------------------"""
-# INPUT_DIM = 19
-INPUT_DIM = 19*5
+HISTORY_WINDOW = 8
+INPUT_DIM = 19*HISTORY_WINDOW
 NUM_CLASSES = 6 #num of primitives
 TRAIN_RUNS = [1,14] #actually 14 because it starts at 1, we are missing 11 and 16 was trash
-TEST_RUNS = [15, 19]
+TEST_RUNS = [15, 15]
 MID_LAYER_DIM = 100
 
 """ --------------------------------------------------------------------------------------
@@ -126,7 +126,7 @@ class NeuralNetwork:
             self.OPTIM_NAME = "Adam"
             self.LOSS_NAME = "CrossEntropy"
             self.BATCH_SIZE = 32
-            self.NUM_EPOCHS = 200
+            self.NUM_EPOCHS = 10 #200
             self.SAVE_INTERVAL = 10
             self.PRINT_INTERVAL = 30
             self.LEARNING_RATE = 0.02
@@ -145,7 +145,7 @@ class NeuralNetwork:
             self.OPTIM_NAME = "Adam"
             self.LOSS_NAME = "CrossEntropy"
             self.BATCH_SIZE = 64
-            self.NUM_EPOCHS = 400
+            self.NUM_EPOCHS = 5 #400
             self.SAVE_INTERVAL = 200
             self.PRINT_INTERVAL = 40
             self.LEARNING_RATE = 0.02
@@ -249,14 +249,17 @@ class NeuralNetwork:
                 state, label = state.to(self.device), label.to(self.device)
                 # Forward pass only to get logits/output
                 output = self.model(state)
+                np_probs = output.cpu().detach().numpy()
                 # Get predictions from the maximum value
                 # Note that, predicted.shape = batch_size
                 _, predicted = torch.max(output.data, 1)
                 np_predicted = predicted.cpu().detach().numpy()
                 if count == 0:
                     allPredictions = np_predicted
+                    allProbs = np_probs
                 else:
                     allPredictions = np.hstack((allPredictions,np_predicted))
+                    allProbs = np.vstack((allProbs,np_probs))
                 count += 1
                 # Total number of labels
                 total += label.size(0)
@@ -275,11 +278,16 @@ class NeuralNetwork:
         # ----- Print accuracy and loss
         print('[--TEST--] Avg Loss: {:.2e}. Accuracy: {:.2f} %'.format(avg_test_loss, accuracy))
 
-        # ----- Save predictions on last epoch
+        # ----- Save predictions and output probabilities on last epoch
         if current_epoch == (self.NUM_EPOCHS-1):
+            # predictions
             fileNameLabels = create_txt_file_name('./test_set_labels/', 'predictedLabels', self.MODEL_NAME)
-            np.savetxt(fileNameLabels, allPredictions, "%i")
-        
+            np.savetxt(fileNameLabels, allPredictions, "%i")    
+            # outputs - 6 numbers corresponding to each primitive
+            fileNameOutput = create_txt_file_name('./output_probabilities/', 'output', self.MODEL_NAME)
+            np.savetxt(fileNameOutput, allProbs, ("%.16e", "%.16e", "%.16e", "%.16e", "%.16e", "%.16e"), 
+                header='non normalized network outputs')
+
         return avg_test_loss, accuracy
 
     """---------------------
@@ -351,7 +359,7 @@ class NeuralNetwork:
             traindat[ep,1] = accuracy
             traindat[ep,3] = avg_test_loss 
         
-        # ----- Save model accuracy and loss
+        # ----- Save model accuracy and loss 
         fileNameAccuracy = create_txt_file_name('./model_loss_and_accuracy/', 'accuracyAndLoss', self.MODEL_NAME)
         np.savetxt(fileNameAccuracy, traindat, ("%i", "%.4f", "%.2e", "%.2e", "%.4f"), 
             header='epoch test_accuracy train_avg_loss test_avg_loss train_accuracy')
