@@ -38,3 +38,9 @@
 build/
 bin/
 # models/
+training/__pycache__/
+
+# folders with data from all runs
+training/output_probabilities/
+training/test_set_labels/
+training/model_loss_and_accuracy/

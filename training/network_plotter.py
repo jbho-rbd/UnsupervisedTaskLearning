@@ -54,7 +54,7 @@ def plot_learning_curves(f1,f2,f3):
         ax_loss.plot(epoch, training_loss, color[i]+':', label=names[i] + ': training')
         ax_loss.plot(epoch, test_loss, color[i]+'-',label=names[i] + ': test')
         ax_loss.set_yscale('log')
-        ax_loss.set_xlabel('Epoch \#')
+        ax_loss.set_xlabel('Epoch #')
         ax_loss.set_ylabel('Cross Entropy Loss')
         #ax_loss.set_yticks(10**np.arange(-1,0.1))
         ax_loss.set_yticks([0.2, 0.5, 1.0, 2.0])
@@ -63,8 +63,8 @@ def plot_learning_curves(f1,f2,f3):
 
         ax_accuracy.plot(epoch, training_accuracy, color[i]+':', label=names[i] + ': train')
         ax_accuracy.plot(epoch, test_accuracy, color[i]+'-', label=names[i] + ': test')
-        ax_accuracy.set_xlabel('Epoch \#')
-        ax_accuracy.set_ylabel('Accuracy (\%)')
+        ax_accuracy.set_xlabel('Epoch #')
+        ax_accuracy.set_ylabel('Accuracy (%)')
         ax_accuracy.legend(loc = 'lower right')
 
     ax_loss.yaxis.set_major_formatter(plt.ScalarFormatter())
@@ -89,13 +89,13 @@ def plot_primitive_probabilities(filename):
     plt.plot(time_data, prob_data_normalized[:,5], label = "tigthen")
     figureName = create_fig_file_name('./final_figures/', 'OUTPUT_PROBS', filename)
     plt.legend()
-    plt.xlabel("time")
-    plt.ylabel("probability")
+    plt.xlabel("Time (s)")
+    plt.ylabel("Probabilities")
     plt.savefig(figureName, dpi = 600)
     plt.show()
 """ --------------------------------------------------------------------------------------
    Main
 -----------------------------------------------------------------------------------------"""
 if __name__ == "__main__":   
-    # plot_learning_curves(FILE_NAME1, FILE_NAME2, FILE_NAME3)
-    plot_primitive_probabilities(FILE_NAME1)
+    plot_learning_curves(FILE_NAME1, FILE_NAME2, FILE_NAME3)
+    # plot_primitive_probabilities(FILE_NAME1)
