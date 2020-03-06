@@ -1,7 +1,19 @@
-// This example application loads a URDF world file and simulates two robots
-// with physics and contact in a Dynamics3D virtual world. A graphics model of it is also shown using 
-// Chai3D.
+/*======================================================================================
+ * PANDA SCREWING CAPS	
+ *
+ * simviz.cpp
+ *
+ * visualizer for a panda arm to align and screw caps on containers
+ * loads a URDF world file and simulates one robot with physics and contact in a Dynamics3D 
+ * virtual world. A graphics model of it is also shown using Chai3D.
+ *
+ * Elena Galbally, Winter 2020
+ *
+ *======================================================================================*/
 
+/* --------------------------------------------------------------------------------------
+   Include Required Libraries 
+-----------------------------------------------------------------------------------------*/
 #include "Sai2Model.h"
 #include "Sai2Graphics.h"
 #include "Sai2Simulation.h"
@@ -21,16 +33,24 @@ void sighandler(int){fSimulationRunning = false;}
 using namespace std;
 using namespace Eigen;
 
+/* --------------------------------------------------------------------------------------
+   Files, Constants and Flags
+-----------------------------------------------------------------------------------------*/
 const string world_file = "../resources/task_bottle_cap/world.urdf";
 // const string robot_file = "./resources/panda_arm.urdf";
 const string robot_file = "../resources/task_bottle_cap/panda_arm_hand.urdf";
 const string robot_name = "PANDA";
 const string camera_name = "camera_fixed";
+// const bool flag_simulation = false;
+const bool flag_simulation = true;
 
-// redis keys:
-// - write:
+/* --------------------------------------------------------------------------------------
+   Redis
+-----------------------------------------------------------------------------------------*/
+// - write
 std::string JOINT_ANGLES_KEY  = "sai2::PandaApplication::sensors::q";
 std::string JOINT_VELOCITIES_KEY = "sai2::PandaApplication::sensors::dq";
+
 // - read
 const std::string TORQUES_COMMANDED_KEY  = "sai2::PandaApplication::actuators::fgc";
 
@@ -42,9 +62,12 @@ const std::string GRIPPER_DESIRED_WIDTH_KEY  = "sai2::PandaApplication::gripper:
 const std::string GRIPPER_DESIRED_SPEED_KEY  = "sai2::PandaApplication::gripper::desired_speed";
 const std::string GRIPPER_DESIRED_FORCE_KEY  = "sai2::PandaApplication::gripper::desired_force";
 
-
+// - client
 RedisClient redis_client;
 
+/* --------------------------------------------------------------------------------------
+	Init simulation and window viz
+-------------------------------------------------------------------------------------*/
 // simulation function prototype
 void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim);
 
@@ -66,9 +89,9 @@ bool fTransZp = false;
 bool fTransZn = false;
 bool fRotPanTilt = false;
 
-// const bool flag_simulation = false;
-const bool flag_simulation = true;
-
+/* =======================================================================================
+   MAIN 
+========================================================================================== */
 int main() {
 	cout << "Loading URDF world model file: " << world_file << endl;
 
@@ -101,7 +124,9 @@ int main() {
 	sim->getJointVelocities(robot_name, robot->_dq);
 	robot->updateKinematics();
 
-	/*------- Set up visualization -------*/
+	/* --------------------------------------------------------------------------------------
+   		Setup visualization
+	-----------------------------------------------------------------------------------------*/
 	// set up error callback
 	glfwSetErrorCallback(glfwError);
 
@@ -145,9 +170,13 @@ int main() {
 		redis_client.setEigenMatrixJSON(JOINT_VELOCITIES_KEY, VectorXd::Zero(robot->dof()-2));
 	}
 
+	
 	fSimulationRunning = true;
 	thread sim_thread(simulation, robot, sim);
-	// while window is open:
+
+	/* --------------------------------------------------------------------------------------
+   		Main Loop - While window is open
+	-----------------------------------------------------------------------------------------*/
 	while (!glfwWindowShouldClose(window))
 	{
 		if(!flag_simulation)
@@ -246,7 +275,9 @@ int main() {
 	return 0;
 }
 
-//------------------------------------------------------------------------------
+/* =======================================================================================
+   SIMULATION 
+========================================================================================== */
 void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim) {
 
 	VectorXd command_torques = VectorXd::Zero(robot->dof());
@@ -280,6 +311,9 @@ void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim) {
 
 	unsigned long long simulation_counter = 0;
 
+	/* --------------------------------------------------------------------------------------
+   		Simulation Loop
+	-----------------------------------------------------------------------------------------*/
 	while (fSimulationRunning) {
 		fTimerDidSleep = timer.waitForNextLoop();
 

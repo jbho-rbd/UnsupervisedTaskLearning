@@ -1,3 +1,18 @@
+/*======================================================================================
+ * PANDA SCREWING CAPS	
+ *
+ * controller.cpp
+ *
+ * controller for a panda arm to align and screw caps on containers
+ * using a deterministic state machine
+ *
+ * Elena Galbally, Winter 2020
+ *
+ *======================================================================================*/
+
+/* --------------------------------------------------------------------------------------
+   Include Required Libraries 
+-----------------------------------------------------------------------------------------*/
 #include "Sai2Model.h"
 #include "redis/RedisClient.h"
 #include "timer/LoopTimer.h"
@@ -14,11 +29,20 @@ void sighandler(int sig)
 using namespace std;
 using namespace Eigen;
 
+/* --------------------------------------------------------------------------------------
+   Files, Constants and Flags
+-----------------------------------------------------------------------------------------*/
 const string robot_file = "../resources/task_bottle_cap/panda_arm.urdf";
 const string robot_name = "PANDA";
+unsigned long long controller_counter = 0;
+const bool inertia_regularization = true;
+const bool flag_simulation = true; // simulation or real robot flag
+// const bool flag_simulation = false;
 
-// redis keys:
-// - read:
+/* --------------------------------------------------------------------------------------
+   Redis
+-----------------------------------------------------------------------------------------*/
+// - read
 std::string JOINT_ANGLES_KEY;
 std::string JOINT_VELOCITIES_KEY;
 std::string JOINT_TORQUES_SENSED_KEY;
@@ -42,15 +66,15 @@ std::string GRIPPER_DESIRED_FORCE_KEY;
 const string KP_KEY = "sai2::PandaApplication::controller:kp_joint";
 const string KV_KEY = "sai2::PandaApplication::controller:kv_joint";
 
-unsigned long long controller_counter = 0;
 
-// const bool flag_simulation = false;
-const bool flag_simulation = true;
-
-const bool inertia_regularization = true;
-
+/* =======================================================================================
+   MAIN
+========================================================================================== */
 int main() {
 
+	/* --------------------------------------------------------------------------------------
+   		Sim vs Robot redis keys
+	-----------------------------------------------------------------------------------------*/
 	if(flag_simulation)
 	{
 		JOINT_ANGLES_KEY  = "sai2::PandaApplication::sensors::q";
@@ -83,6 +107,9 @@ int main() {
 		GRIPPER_DESIRED_FORCE_KEY  = "sai2::FrankaPanda::gripper::desired_force";
 	}
 
+	/* --------------------------------------------------------------------------------------
+   		Init Controller
+	-----------------------------------------------------------------------------------------*/
 	// start redis client
 	auto redis_client = RedisClient();
 	redis_client.connect();
@@ -117,6 +144,9 @@ int main() {
 	double start_time = timer.elapsedTime(); //secs
 	bool fTimerDidSleep = true;
 
+	/* =======================================================================================
+   		CONTROL LOOP
+	========================================================================================== */
 	while (runloop) {
 		// wait for next scheduled loop
 		timer.waitForNextLoop();
@@ -167,7 +197,6 @@ int main() {
     std::cout << "Controller Loop run time  : " << end_time << " seconds\n";
     std::cout << "Controller Loop updates   : " << timer.elapsedCycles() << "\n";
     std::cout << "Controller Loop frequency : " << timer.elapsedCycles()/end_time << "Hz\n";
-
 
 	return 0;
 }
