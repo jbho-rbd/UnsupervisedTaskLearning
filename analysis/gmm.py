@@ -1,3 +1,12 @@
+"""======================================================================================
+ gmm.py
+ 
+ Input: raw sensor data    
+ Output: labelled sensor data
+ 
+Jonathan Ho, Fall 2019
+Elena Galbally, Spring 2020
+======================================================================================"""
 import imageio
 import matplotlib.animation as ani
 import matplotlib.cm as cmx
@@ -17,23 +26,44 @@ from PIL import Image
 from sklearn import datasets
 from sklearn.cluster import KMeans
 
-from classifier import Pr
 from read_data import read_data0, read_data1
 
+""" --------------------------------------------------------------------------------------
+   Utility Functions
+-----------------------------------------------------------------------------------------"""
+class Pr(enum.Enum): 
+    """ 
+        Enum associating each primitive with an integer 
+    """
+    none = 0
+    fsm = 1
+    align = 2
+    engage = 3
+    screw = 4
+    tighten = 5
+
 def sample_primitive(p):
-      #p probability distribution of which primitive
-      return bisect.bisect(np.cumsum(p), random.random())
-
-
-# look at the data for each primitive once, run the suggested tests and see which ones yield statistically relevant results, then include those that are statistically relevant in the tree
+    """ 
+        Selects the primitive with the highest associated probability
+            Input:
+                p: (6,) numpy array representing the probability of each primitive
+            Output:
+                integer between 0-5 corresponding to the selected primitive(2,)
+    """
+    return bisect.bisect(np.cumsum(p), random.random())
 
 def initializeTransitionMatrix(final=False):
-    #transition matrix
+    """ 
+            Input:
+                final: flag -> False for Training, True for Testing
+            Output:
+                array of size (6,6) containing conditional probabilities: T[pr_i|pr_j]
+    """
     if final:
-        T = np.zeros((6,6))
+        T = np.zeros((6,6)) # you can only move between specified primitives (more restrictive)
     else:
-        T = np.ones((6,6))
-    #
+        T = np.ones((6,6)) # you can move from any primitive to any other
+    # 
     T[Pr.none.value, Pr.none.value] = 50
     T[Pr.none.value, Pr.fsm.value] = 1
     T[Pr.none.value, Pr.screw.value] = 1
@@ -52,7 +82,6 @@ def initializeTransitionMatrix(final=False):
     T[Pr.engage.value, Pr.none.value] = 1
     T[Pr.engage.value, Pr.screw.value] = 1
     # T[Pr.engage.value, Pr.tighten.value] = 0
-
     # T[Pr.engage.value, Pr.screw.value] = 0.1
     
     # T[Pr.screw.value, Pr.none.value] = 0.5
@@ -66,22 +95,88 @@ def initializeTransitionMatrix(final=False):
     T[Pr.tighten.value, Pr.none.value] = 1
     # T[Pr.tighten.value, Pr.screw.value] = 0
 
-
+    # scale values so they are all probabilities between 0-1
     T = np.transpose(T.transpose() / np.sum(T,axis=1))
     return T
+
+def initializeConstraints():
+    myConstraints=[()]*n_primitives
+    myConstraints[Pr.none.value] = (
+        (var_idxs['vel_x'], 0.0, -1.0),
+        (var_idxs['vel_y'], 0.0, -1.0),
+        (var_idxs['vel_z'], 0.0, -1.0),
+        (var_idxs['ang_vel_x'], 0.0, -1.0),
+        (var_idxs['ang_vel_y'], 0.0, -1.0),
+        (var_idxs['ang_vel_z'], 0.0, -1.0),
+        (var_idxs['F_x'], 0.0, -1.0),
+        (var_idxs['F_y'], 0.0, -1.0),
+        (var_idxs['F_z'], 0.0, -1.0),
+        (var_idxs['M_x'], 0.0, -1.0),
+        (var_idxs['M_y'], 0.0, -1.0),
+        (var_idxs['M_z'], 0.0, -1.0),
+        )
+    myConstraints[Pr.fsm.value] = (
+        (var_idxs['M_x'], 0.0, -1.0),
+        (var_idxs['M_y'], 0.0, -1.0),
+        (var_idxs['M_z'], 0.0, -1.0)
+    )
+    myConstraints[Pr.align.value] = (
+        (var_idxs['vel_x'], 0.0, -1.0),
+        (var_idxs['vel_y'], 0.0, -1.0),
+        (var_idxs['vel_z'], 0.0, -1.0),
+        (var_idxs['ang_vel_z'], 0.0, 0.5),
+    )
+    myConstraints[Pr.engage.value] = (
+        (var_idxs['ori_x'], 0.0, 0.5),
+        (var_idxs['ori_y'], 0.0, 0.5),
+        (var_idxs['vel_x'], 0.0, -1.0),
+        (var_idxs['vel_y'], 0.0, -1.0),
+        (var_idxs['vel_z'], 0.0, -1.0),
+        (var_idxs['ang_vel_x'], 0.0, -1.0),
+        (var_idxs['ang_vel_y'], 0.0, -1.0)
+    )
+    myConstraints[Pr.screw.value] = (
+        (var_idxs['vel_x'], 0.0, -1.0),
+        (var_idxs['vel_y'], 0.0, -1.0),
+        (var_idxs['vel_z'], 0.0, -1.0),
+        (var_idxs['ang_vel_x'], 0.0, -1.0),
+        (var_idxs['ang_vel_y'], 0.0, -1.0),
+    )
+    myConstraints[Pr.tighten.value] = (
+        (var_idxs['vel_x'], 0.0, -1.0),
+        (var_idxs['vel_y'], 0.0, -1.0),
+        (var_idxs['vel_z'], 0.0, -1.0),
+        (var_idxs['ang_vel_x'], 0.0, -1.0),
+        (var_idxs['ang_vel_y'], 0.0, -1.0),
+        (var_idxs['ang_vel_z'], 0.0, 0.5)
+    )
+    return myConstraints
+
 def mixWithIdentity(T,alpha):
     return alpha*np.eye(T.shape[0]) + (1 - alpha)*T
+
 def forward_model_primitive(s_value, T):
     #s is a primitve idx
     #T is the transition matrix
     return sample_primitive(T[s_value])
+
 def gaussian(X, mu, cov):
     return scipy.stats.multivariate_normal.pdf(X, mean=mu, cov=cov)
+
+def mix_mean_covar_pi(mean,covar,pi,mean0,covar0,pi0,k):
+    np.save(mean, np.load(mean)*(1 - k) + k*np.load(mean0))
+    np.save(covar, np.load(covar)*(1 - k) + k*np.load(covar0))
+    np.save(pi, np.load(pi)*(1 - k) + k*np.load(pi0))
+
+""" --------------------------------------------------------------------------------------
+   Gaussian Mixture Model Class 
+-----------------------------------------------------------------------------------------"""
 class GMM:
     def __init__(self, X, offset=0.0):
         self.X = X;
         self.epoch = 0;
         self.offset = offset
+    
     def initialize_clusters(self, n_clusters, constraints=None, means0=None, cov0=None):#each cluster is a primitive
         self.clusters = []
         self.n_clusters = n_clusters
@@ -117,6 +212,7 @@ class GMM:
             if self.constraints:
                 self.clusters[i]['constraint_k'] = constraints[i]
         return self.clusters
+    
     def initialize_clusters_from_savedfiles(self, n_clusters, meanfile,covfile,pifile, constraints=None):#each cluster is a primitive
         self.clusters = []
         self.n_clusters = n_clusters
@@ -137,18 +233,20 @@ class GMM:
             if self.constraints:
                 self.clusters[i]['constraint_k'] = constraints[i]
         return self.clusters
+
     def inflate_cov(self, factor):#each cluster is a primitive
         for cluster in self.clusters:
             cluster['cov_k'] = factor*cluster['cov_k']
-    def expectation_step(self,t=None,prefix="figures/likelihood",saveFile=None,T_matrix=None, T_matrix_standard=None):
+
+    def expectation_step(self,t=None,prefix="figures/likelihood",saveFile=None,T_matrix_APF=None, T_matrix_standard=None):
         # computes realisations or whatever you wanna call them
         # computes p(belong to primitive | X) for each X
         # this could possibly be replaced with the particle filter
         plotFlag = t is not None
         if plotFlag:
             f,ax = plt.subplots(1)
-        if T_matrix is not None:
-            self.apf_expectation(T_matrix)
+        if T_matrix_APF is not None:
+            self.apf_expectation(T_matrix_APF)  #the option that worked best
         elif T_matrix_standard is not None:
             self.standard_expectation(T_matrix_standard)
         else:
@@ -168,6 +266,7 @@ class GMM:
             for kk, cluster in enumerate(self.clusters):
                 likelihoods[:,kk+1] = cluster['gamma_nk']
             np.savetxt(saveFile, likelihoods)
+
     def standard_expectation(self,T_matrix=None):
         totals = np.zeros(self.X.shape[0], dtype=np.float64)
         if T_matrix is not None:
@@ -199,6 +298,7 @@ class GMM:
                 else:
                     cluster['gamma_nk'][i] /= totals[i];
             self.likelihoods[:,kk] = cluster['gamma_nk']
+
     def pf_expectation(self,T_forward):
         """ 
         Input:
@@ -247,6 +347,7 @@ class GMM:
           self.totals[t+1] = np.sum(ps)
         for kk, cluster in enumerate(self.clusters):
             cluster['gamma_nk'] = likelihoods[:,kk]
+
     def apf_expectation(self,T_forward):
         """ 
         auxiliary particle filter: https://people.maths.bris.ac.uk/~manpw/apf_chapter.pdf
@@ -313,6 +414,7 @@ class GMM:
             likelihoods[-1,kk] = temp[-1]/N_particles
             cluster['gamma_nk'] = likelihoods[:,kk]
         self.offset = max(self.offset*0.5, 0.1)
+
     def maximization_step(self):
         N = float(self.X.shape[0])
         
@@ -340,17 +442,21 @@ class GMM:
                                 cov_k[constraint[0],:] = scalefactor*cov_k[constraint[0],:]
                                 cov_k[:,constraint[0]] = scalefactor*cov_k[:,constraint[0]]
 
-
             cov_k /= N_k
             # print("Cluster[{0:d}] cond: {1:e}, N_k: {2:e}".format(kk,np.linalg.cond(cov_k), N_k))
             
             cluster['pi_k'] = pi_k
             cluster['mu_k'] = mu_k
             cluster['cov_k'] = cov_k
+
     def get_likelihood(self):
         sample_likelihoods = np.log(self.totals)
         return np.sum(sample_likelihoods)
+
     def save(self, meanfile, covarfile, pifile):
+        """
+        Save binaries
+        """
         mu0 = np.zeros((self.n_clusters,self.X.shape[1]))
         cov0 = np.zeros((self.n_clusters,self.X.shape[1],self.X.shape[1]))
         pi0 = np.zeros(self.n_clusters)
@@ -361,11 +467,26 @@ class GMM:
         np.save(meanfile,mu0)
         np.save(covarfile, cov0)
         np.save(pifile,pi0)
-def mix_mean_covar_pi(mean,covar,pi,mean0,covar0,pi0,k):
-    np.save(mean, np.load(mean)*(1 - k) + k*np.load(mean0))
-    np.save(covar, np.load(covar)*(1 - k) + k*np.load(covar0))
-    np.save(pi, np.load(pi)*(1 - k) + k*np.load(pi0))
+
+""" --------------------------------------------------------------------------------------
+   Main
+-----------------------------------------------------------------------------------------"""
+""" 
+    - Initialize:
+            * create an array "subset" with the raw sensor data of interest
+            * manually label one run (data from one human demo of the whole task) and extract 
+              a mean and cov based on the manual labelling to seed the gmm algorithm
+    - Training:
+            * train by running the gmm on run1 using the mean and cov from the manual labelling as seeds
+    - Testing:
+            * test on other runs using the mean and cov from the training as seeds 
+"""
 if __name__ == "__main__":
+
+    # Number of primitives in this task
+    n_primitives = 6
+    
+    # Dictionary for the raw sensor data
     var_idxs = { 
         'pos_x' : 0,
         'pos_y' : 1,
@@ -385,18 +506,22 @@ if __name__ == "__main__":
         'M_x' : 15,
         'M_y' : 16,
         'M_z' : 17}
-        # 'ang_vel_z_transform' : 1
-    subset = np.hstack((np.arange(3, 5), np.arange(6,18)))
-    # subset = np.hstack((np.arange(6,18)))
+
+    # subset contains only the sensor data we are interested in: 3,4,6-17
+    subset = np.hstack((np.arange(var_idxs['vel_x'], 5), np.arange(6,18)))
+    
+    # Reorder the dictionary according to data in subset
     for key, val in var_idxs.items():
         found_idxs = np.where(subset==val)[0]
         if found_idxs.size > 0:
             var_idxs[key] = found_idxs[0]
         else:
-            var_idxs[key] = -1
-    n_primitives = 6
+            var_idxs[key] = -1 # assign -1 in dictionary to the data that wasn't included in subset
+
     N = len(subset)
-    # By manually labelling the data extract some mean and cov data to begin with
+
+    # By manually labelling the data we extract a mean and cov to begin the iterations
+    print("-------- manually labelling run1 -----------")
     mu0 = np.zeros((n_primitives,N))
     cov0 = np.zeros((n_primitives,N,N))
     tlabels = np.genfromtxt("../data/medium_cap/raw_medium_cap/run1_tlabels",dtype=float)
@@ -409,105 +534,76 @@ if __name__ == "__main__":
                 tpairs.append([tlabels[i],tlabels[i+1]])
         print("Primitive: {0:s}".format(Pr(prim)))
         print(tpairs)
-        time, X = read_data1('../data/medium_cap/raw_medium_cap/run1', '../data/medium_cap/raw_medium_cap/bias.force',output_fmt='array',tpairlist=tpairs)
+        time, X = read_data1('../data/medium_cap/raw_medium_cap/run1', 
+            '../data/medium_cap/raw_medium_cap/bias.force',output_fmt='array',tpairlist=tpairs)
         #each row of X is an observation
         #each column of X is a variable
         mu0[prim.value] = np.mean(X[:,subset],axis=0)
-        # print(mu0[prim.value])
         cov0[prim.value] = np.cov(X[:,subset],rowvar=False)
-        # cov0[prim.value] = np.diag(np.diag(cov0[prim.value]))
-        # print(np.linalg.cond(cov0[prim.value]))
-        # print("{0:e}".format(np.linalg.cond(cov0[prim.value])))
-    #TRAINING
-    time,X = read_data1('../data/medium_cap/raw_medium_cap/run1', '../data/medium_cap/raw_medium_cap/bias.force',output_fmt='array',t0=0.0, t1 = 10.5)
-    # np.savetxt("scaling_cov_diag.dat",np.diag(np.cov(X,rowvar=False)))
-    #set up my Constraints
-    myConstraints=[()]*n_primitives
-    myConstraints[Pr.none.value] = (
-        (var_idxs['vel_x'], 0.0, -1.0),
-        (var_idxs['vel_y'], 0.0, -1.0),
-        (var_idxs['vel_z'], 0.0, -1.0),
-        (var_idxs['ang_vel_x'], 0.0, -1.0),
-        (var_idxs['ang_vel_y'], 0.0, -1.0),
-        (var_idxs['ang_vel_z'], 0.0, -1.0),
-        (var_idxs['F_x'], 0.0, -1.0),
-        (var_idxs['F_y'], 0.0, -1.0),
-        (var_idxs['F_z'], 0.0, -1.0),
-        (var_idxs['M_x'], 0.0, -1.0),
-        (var_idxs['M_y'], 0.0, -1.0),
-        (var_idxs['M_z'], 0.0, -1.0),
-        )
-    myConstraints[Pr.fsm.value] = (
-        (var_idxs['M_x'], 0.0, -1.0),
-        (var_idxs['M_y'], 0.0, -1.0),
-        (var_idxs['M_z'], 0.0, -1.0)
-    )
-    myConstraints[Pr.align.value] = (
-        (var_idxs['vel_x'], 0.0, -1.0),
-        (var_idxs['vel_y'], 0.0, -1.0),
-        (var_idxs['vel_z'], 0.0, -1.0),
-        (var_idxs['ang_vel_z'], 0.0, 0.5),
-    )
-    myConstraints[Pr.engage.value] = (
-        (var_idxs['ori_x'], 0.0, 0.5),
-        (var_idxs['ori_y'], 0.0, 0.5),
-        (var_idxs['vel_x'], 0.0, -1.0),
-        (var_idxs['vel_y'], 0.0, -1.0),
-        (var_idxs['vel_z'], 0.0, -1.0),
-        (var_idxs['ang_vel_x'], 0.0, -1.0),
-        (var_idxs['ang_vel_y'], 0.0, -1.0)
-    )
-    myConstraints[Pr.screw.value] = (
-        (var_idxs['vel_x'], 0.0, -1.0),
-        (var_idxs['vel_y'], 0.0, -1.0),
-        (var_idxs['vel_z'], 0.0, -1.0),
-        (var_idxs['ang_vel_x'], 0.0, -1.0),
-        (var_idxs['ang_vel_y'], 0.0, -1.0),
-    )
-    myConstraints[Pr.tighten.value] = (
-        (var_idxs['vel_x'], 0.0, -1.0),
-        (var_idxs['vel_y'], 0.0, -1.0),
-        (var_idxs['vel_z'], 0.0, -1.0),
-        (var_idxs['ang_vel_x'], 0.0, -1.0),
-        (var_idxs['ang_vel_y'], 0.0, -1.0),
-        (var_idxs['ang_vel_z'], 0.0, 0.5)
-    )
+    
+    """---------------------
+        Training
+    ------------------------"""
+    # Data to segment
+    time,X = read_data1('../data/medium_cap/raw_medium_cap/run1', 
+        '../data/medium_cap/raw_medium_cap/bias.force',
+        output_fmt='array',t0=0.0, t1 = 10.5)
+    
+    # Initialize gmm and parameters
+    trainingFlag = len(sys.argv) < 2 # it will train if you don't pass any run numbers otherwise it will just test
+    myConstraints = initializeConstraints()
     myGMM = GMM(X[:,subset])
-    # myGMM.initialize_clusters(n_primitives, means0=mu0, cov0=cov0)
     transition = initializeTransitionMatrix()
-    if True:
-        myGMM.initialize_clusters(n_primitives, means0=mu0, cov0=cov0,
-            constraints=myConstraints)
-        for i in range(30):
-            if i == 29:#i % 100 == 0:
-                myGMM.expectation_step(t=time,saveFile="results/run1_likelihoods"
-                    ,T_matrix=transition
-                    )
-            else:
-                myGMM.expectation_step(
-                    T_matrix=transition
-                    )
+    numIterTrain = 5
+    myGMM.initialize_clusters(n_primitives, means0=mu0, cov0=cov0, constraints=myConstraints)
+
+    # Train by running gmm for "run1" of the demonstration data
+    if trainingFlag:      
+        print("-------- training on run1 -----------")
+        for i in range(numIterTrain):
+            if i == numIterTrain - 1: # save data on the last iteration
+                myGMM.expectation_step(t=time,saveFile="results/run1_likelihoods",T_matrix_APF=transition)
+            else: # T_matrix_APF implies that the expectation step is using an Augmented Particle Filter
+                myGMM.expectation_step(T_matrix_APF=transition)
             myGMM.maximization_step()
             print("it: {0:d} likelihood function {1:e}".format(i, myGMM.get_likelihood()))
+        
+        # Save training data
         myGMM.save('references/mean', 'references/covar', 'references/pi')
+
+        # Print training results
         means = np.load('references/mean.npy')
         covar = np.load('references/covar.npy')
+        print("-------- training results for run1 -----------")
         for prim in [Pr.none, Pr.fsm, Pr.align, Pr.engage, Pr.screw, Pr.tighten]:
             print("Means: ", prim)
             for var in ('ang_vel_z', 'F_z'):
                 print("{0:s}: mu: {1:f} stdev ".format(var,means[prim.value][var_idxs[var]]),
                     np.sqrt(covar[prim.value,var_idxs[var],var_idxs[var]])) 
+
+        # Run the "main" in plot_data.py
         os.system('python3 plot_data.py 1')
-    #TESTING
+        
+    """---------------------
+        Testing
+    ------------------------"""
+    """ 
+        The following code will run iff you specify a run number on command line:
+            python gmm.py [run_number]
+
+        *note: a run is the raw sensor data corresponding to 
+        one human demonstration of the full task
+    """
     if len(sys.argv) < 2:
         exit()
     run_number=int(sys.argv[1])
     testfile='../data/medium_cap/raw_medium_cap/run{0:d}'.format(run_number)
-    print("--------testing: ",testfile, "-----------")
+    print("-------- testing: ",testfile, "-----------")
     time,X = read_data1(testfile, '../data/medium_cap/raw_medium_cap/bias.force',output_fmt='array')
     offset = 0.01
     transition = initializeTransitionMatrix(final=True)
     success = False
+    numIterTest = 5
     while not success and offset < 10000:
         success = True
         offset = offset*10
@@ -516,20 +612,22 @@ if __name__ == "__main__":
         mytestGMM.offset = offset
         try:
             mytestGMM.initialize_clusters_from_savedfiles(n_primitives, 'references/mean.npy', 'references/covar.npy', 'references/pi.npy',constraints=myConstraints)
-            for i in range(30):
-                if i == 29:
-                    mytestGMM.expectation_step(t=time,prefix="figures/run{0:d}_epoch".format(run_number),saveFile="results/run{0:d}_likelihoods".format(run_number),
-                        T_matrix=transition)
+            for i in range(numIterTest):
+                if i == numIterTest - 1:
+                    mytestGMM.expectation_step(t=time,prefix="figures/run{0:d}_epoch".format(run_number),
+                        saveFile="results/run{0:d}_likelihoods".format(run_number),
+                        T_matrix_APF=transition)
                 else:
-                    mytestGMM.expectation_step(
-                        T_matrix=transition)
+                    mytestGMM.expectation_step(T_matrix_APF=transition)
+                
                 mytestGMM.maximization_step()
                 print("it: {0:d} likelihood  function {1:e}".format(i, mytestGMM.get_likelihood()))
+        
         except Exception as e:
             print("error: ", e)
             success = False
 
-    # mytestGMM.save('references/meantest', 'references/covartest', 'references/pitest')
+    mytestGMM.save('references/meantest', 'references/covartest', 'references/pitest')
     # mix_mean_covar_pi('references/mean.npy', 'references/covar.npy', 'references/pi.npy',
     #     'references/meantest.npy', 'references/covartest.npy', 'references/pitest.npy',
     #     1.0/run_number)
