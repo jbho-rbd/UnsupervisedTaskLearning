@@ -532,45 +532,53 @@ if __name__ == "__main__":
 
     N = len(subset)
 
-    # By manually labelling the data we extract a mean and cov to begin the iterations
-    print("-------- manually labelling run1 -----------")
-    mu0 = np.zeros((n_primitives,N))
-    cov0 = np.zeros((n_primitives,N,N))
-    tlabels = np.genfromtxt("../data/medium_cap/raw_medium_cap/run1_tlabels",dtype=float)
-    tlabels = np.insert(tlabels,0,0.0)
-    labels=[Pr(int(idx)) for idx in np.genfromtxt("../data/medium_cap/raw_medium_cap/run1_prmlabels")]
-    for prim in [Pr.none, Pr.fsm, Pr.align, Pr.engage, Pr.screw, Pr.tighten]:
-        tpairs = []
-        for i in range(len(labels)):#collect different labels and time periods corresponding to this primitive
-            if(labels[i] == prim):
-                tpairs.append([tlabels[i],tlabels[i+1]])
-        print("Primitive: {0:s}".format(Pr(prim)))
-        print(tpairs)
-        time, X = read_data1('../data/medium_cap/raw_medium_cap/run1', 
-            '../data/medium_cap/raw_medium_cap/bias.force',output_fmt='array',tpairlist=tpairs)
-        #each row of X is an observation
-        #each column of X is a variable
-        mu0[prim.value] = np.mean(X[:,subset],axis=0)
-        cov0[prim.value] = np.cov(X[:,subset],rowvar=False)
-    
-    """---------------------
-        Training
-    ------------------------"""
-    # Data to segment
-    time,X = read_data1('../data/medium_cap/raw_medium_cap/run1', 
-        '../data/medium_cap/raw_medium_cap/bias.force',
-        output_fmt='array',t0=0.0, t1 = 10.5)
-    
-    # Initialize gmm and parameters
-    trainingFlag = len(sys.argv) < 2 # it will train if you don't pass any run numbers otherwise it will just test
-    myConstraints = initializeConstraints()
-    myGMM = GMM(X[:,subset])
-    transition = initializeTransitionMatrix()
-    numIterTrain = 5
-    myGMM.initialize_clusters(n_primitives, means0=mu0, cov0=cov0, constraints=myConstraints)
+    """
+    labelling and training will run if and only if you don't pass any run numbers
+    otherwise it will just test
+    """
+    trainingFlag = len(sys.argv) < 2 
+    print(">>>>>>>> Training = ", trainingFlag)
+    if trainingFlag:  
+        """---------------------
+            Manual Labelling
+        ------------------------"""
+        # By manually labelling 1 run of data we extract a mean and cov to begin the iterations
+        print("-------- manually labelling run1 -----------")
+        mu0 = np.zeros((n_primitives,N))
+        cov0 = np.zeros((n_primitives,N,N))
+        tlabels = np.genfromtxt("../data/medium_cap/raw_medium_cap/run1_tlabels",dtype=float)
+        tlabels = np.insert(tlabels,0,0.0)
+        labels=[Pr(int(idx)) for idx in np.genfromtxt("../data/medium_cap/raw_medium_cap/run1_prmlabels")]
+        for prim in [Pr.none, Pr.fsm, Pr.align, Pr.engage, Pr.screw, Pr.tighten]:
+            tpairs = []
+            for i in range(len(labels)):#collect different labels and time periods corresponding to this primitive
+                if(labels[i] == prim):
+                    tpairs.append([tlabels[i],tlabels[i+1]])
+            print("Primitive: {0:s}".format(Pr(prim)))
+            print(tpairs)
+            time, X = read_data1('../data/medium_cap/raw_medium_cap/run1', 
+                '../data/medium_cap/raw_medium_cap/bias.force',output_fmt='array',tpairlist=tpairs)
+            #each row of X is an observation
+            #each column of X is a variable
+            mu0[prim.value] = np.mean(X[:,subset],axis=0)
+            cov0[prim.value] = np.cov(X[:,subset],rowvar=False)
+        
+        """---------------------
+            Training
+        ------------------------"""
+        # Data to segment
+        time,X = read_data1('../data/medium_cap/raw_medium_cap/run1', 
+            '../data/medium_cap/raw_medium_cap/bias.force',
+            output_fmt='array',t0=0.0, t1 = 10.5)
+        
+        # Initialize gmm and parameters
+        numIterTrain = 5
+        myConstraints = initializeConstraints()
+        myGMM = GMM(X[:,subset])
+        transition = initializeTransitionMatrix()
+        myGMM.initialize_clusters(n_primitives, means0=mu0, cov0=cov0, constraints=myConstraints)
 
-    # Train by running gmm for "run1" of the demonstration data
-    if trainingFlag:      
+        # Train by running gmm for "run1" of the demonstration data    
         print("-------- training on run1 -----------")
         for i in range(numIterTrain):
             if i == numIterTrain - 1: # save data on the last iteration
@@ -615,12 +623,14 @@ if __name__ == "__main__":
     time,X = read_data1(testfile, '../data/medium_cap/raw_medium_cap/bias.force',output_fmt='array')
 
     # Initialize parameters
+    myConstraints = initializeConstraints()
     numIterTest = 5
     offset = 0.01
     transition = initializeTransitionMatrix(final=True)
     success = False
 
     # Testing
+    print("-------- testing on: ",testfile, "-----------")
     while not success and offset < 10000:
         success = True
         offset = offset*10
@@ -654,7 +664,7 @@ if __name__ == "__main__":
     # Print testing results
     means = np.load('references/meantest.npy')
     covar = np.load('references/covartest.npy')
-    print("-------- testing: ",testfile, "-----------")
+    print("-------- testing results for: ",testfile, "-----------")
     for prim in [Pr.none, Pr.fsm, Pr.align, Pr.engage, Pr.screw, Pr.tighten]:
         print("Stats: ", prim)
         for var in ('ang_vel_z', 'M_z'):
