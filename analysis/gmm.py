@@ -246,7 +246,8 @@ class GMM:
 
     def expectation_step(self,t=None,prefix="figures/likelihood",saveFile=None,T_matrix_APF=None, T_matrix_standard=None):
         """
-            Output: omputes p(belong to primitive | X) for each X
+            Output: computes p(belong to primitive | X) for each X
+            It saves these likelihoods to a .txt
             Uses: a particle filter with a heuristic forward model: T(sn | sn-1) 
         """
         plotFlag = t is not None
@@ -480,6 +481,123 @@ class GMM:
         np.save(covarfile, cov0)
         np.save(pifile,pi0)
 
+    def manual_labelling(self):
+        """---------------------
+            Manual Labelling
+        ------------------------"""
+        # By manually labelling 1 run of data we extract a mean and cov to begin the iterations
+        print("-------- manual labelling of run1 -----------")
+        mu0 = np.zeros((n_primitives,N))
+        cov0 = np.zeros((n_primitives,N,N))
+        tlabels = np.genfromtxt("../data/medium_cap/raw_medium_cap/run1_tlabels",dtype=float)
+        tlabels = np.insert(tlabels,0,0.0)
+        labels=[Pr(int(idx)) for idx in np.genfromtxt("../data/medium_cap/raw_medium_cap/run1_prmlabels")]
+        for prim in [Pr.none, Pr.fsm, Pr.align, Pr.engage, Pr.screw, Pr.tighten]:
+            tpairs = []
+            for i in range(len(labels)):#collect different labels and time periods corresponding to this primitive
+                if(labels[i] == prim):
+                    tpairs.append([tlabels[i],tlabels[i+1]])
+            print("Primitive: {0:s}".format(Pr(prim)))
+            print(tpairs)
+            time, X = read_data1('../data/medium_cap/raw_medium_cap/run1', 
+                '../data/medium_cap/raw_medium_cap/bias.force',output_fmt='array',tpairlist=tpairs)
+            #each row of X is an observation
+            #each column of X is a variable
+            mu0[prim.value] = np.mean(X[:,subset],axis=0)
+            cov0[prim.value] = np.cov(X[:,subset],rowvar=False)
+        return mu0,cov0
+
+    def train(self, mu0, cov0, numIterTrain, transition):
+        """---------------------
+            Training
+        ------------------------"""      
+        myGMM.initialize_clusters(n_primitives, means0=mu0, cov0=cov0, constraints=myConstraints)
+
+        # Train by running gmm for "run1" of the demonstration data    
+        print("-------- training on run1 -----------")
+        for i in range(numIterTrain):
+            if i == numIterTrain - 1: # save data on the last iteration
+                myGMM.expectation_step(t=time,saveFile="results/run1_likelihoods",T_matrix_APF=transition)
+            else: # T_matrix_APF implies that the expectation step is using an Augmented Particle Filter
+                myGMM.expectation_step(T_matrix_APF=transition)
+            myGMM.maximization_step()
+            print("it: {0:d} likelihood function {1:e}".format(i, myGMM.get_likelihood()))
+        
+        # Save training data
+        myGMM.save('references/mean', 'references/covar', 'references/pi')
+
+        # Print training results
+        means = np.load('references/mean.npy')
+        covar = np.load('references/covar.npy')
+        print("-------- training results for run1 -----------")
+        for prim in [Pr.none, Pr.fsm, Pr.align, Pr.engage, Pr.screw, Pr.tighten]:
+            print("Means: ", prim)
+            for var in ('ang_vel_z', 'F_z'):
+                print("{0:s}: mu: {1:f} stdev ".format(var,means[prim.value][var_idxs[var]]),
+                    np.sqrt(covar[prim.value,var_idxs[var],var_idxs[var]])) 
+
+        # Plot by running the "main" in plot_data.py
+        os.system('python3 plot_data.py 1')
+    
+    def test(self, run_number, numIterTest, transition):
+        """---------------------
+        Testing
+        ------------------------"""
+        """ 
+            The following code will run iff you specify a run number on command line:
+                python gmm.py [run_number]
+
+            *note: a run is the raw sensor data corresponding to 
+            one human demonstration of the full task
+        """
+        offset = 0.01
+        success = False
+
+        # Testing
+        print("-------- testing on: ",testfile, "-----------")
+        while not success and offset < 10000:
+            success = True
+            offset = offset*10
+            print("offset: ", offset)
+            mytestGMM.offset = offset
+            try:
+                mytestGMM.initialize_clusters_from_savedfiles(n_primitives, 
+                    'references/mean.npy', 'references/covar.npy', 'references/pi.npy',constraints=myConstraints)
+                for i in range(numIterTest):
+                    if i == numIterTest - 1:
+                        mytestGMM.expectation_step(t=time,prefix="figures/run{0:d}_epoch".format(run_number),
+                            saveFile="results/run{0:d}_likelihoods".format(run_number),
+                            T_matrix_APF=transition)
+                    else:
+                        mytestGMM.expectation_step(T_matrix_APF=transition)
+                    
+                    mytestGMM.maximization_step()
+                    print("it: {0:d} likelihood  function {1:e}".format(i, mytestGMM.get_likelihood()))
+            
+            except Exception as e:
+                print("error: ", e)
+                success = False
+
+        # Save testing data
+        mytestGMM.save('references/meantest', 'references/covartest', 'references/pitest')
+        # mix_mean_covar_pi('references/mean.npy', 'references/covar.npy', 'references/pi.npy',
+        #     'references/meantest.npy', 'references/covartest.npy', 'references/pitest.npy',
+        #     1.0/run_number)
+
+        # Print testing results
+        means = np.load('references/meantest.npy')
+        covar = np.load('references/covartest.npy')
+        print("-------- testing results for: ",testfile, "-----------")
+        for prim in [Pr.none, Pr.fsm, Pr.align, Pr.engage, Pr.screw, Pr.tighten]:
+            print("Stats: ", prim)
+            for var in ('ang_vel_z', 'M_z'):
+                print("{0:s}: mu: {1:f} stdev ".format(var,means[prim.value][var_idxs[var]]),
+                np.sqrt(covar[prim.value,var_idxs[var],var_idxs[var]])) 
+
+        # Plot by running the "main" in plot_data.py
+        os.system('python3 plot_data.py '+str(run_number))
+
+
 """ --------------------------------------------------------------------------------------
    Main
 -----------------------------------------------------------------------------------------"""
@@ -495,9 +613,11 @@ class GMM:
 """
 if __name__ == "__main__":
 
-    # Number of primitives in this task
-    n_primitives = 6
-    
+    # Initialize parameters
+    n_primitives = 6  
+    numIterTrain = 5
+    numIterTest = 5  
+
     # Dictionary for the raw sensor data
     var_idxs = { 
         'pos_x' : 0,
@@ -533,146 +653,48 @@ if __name__ == "__main__":
     N = len(subset)
 
     """
-    labelling and training will run if and only if you don't pass any run numbers
-    otherwise it will just test
+    TRAINING AND TESTING
+        labelling and training will run if and only if you don't pass any run numbers
+        otherwise it will just test
     """
     trainingFlag = len(sys.argv) < 2 
-    print(">>>>>>>> Training = ", trainingFlag)
+    myConstraints = initializeConstraints()
+
     if trainingFlag:  
-        """---------------------
-            Manual Labelling
-        ------------------------"""
-        # By manually labelling 1 run of data we extract a mean and cov to begin the iterations
-        print("-------- manually labelling run1 -----------")
-        mu0 = np.zeros((n_primitives,N))
-        cov0 = np.zeros((n_primitives,N,N))
-        tlabels = np.genfromtxt("../data/medium_cap/raw_medium_cap/run1_tlabels",dtype=float)
-        tlabels = np.insert(tlabels,0,0.0)
-        labels=[Pr(int(idx)) for idx in np.genfromtxt("../data/medium_cap/raw_medium_cap/run1_prmlabels")]
-        for prim in [Pr.none, Pr.fsm, Pr.align, Pr.engage, Pr.screw, Pr.tighten]:
-            tpairs = []
-            for i in range(len(labels)):#collect different labels and time periods corresponding to this primitive
-                if(labels[i] == prim):
-                    tpairs.append([tlabels[i],tlabels[i+1]])
-            print("Primitive: {0:s}".format(Pr(prim)))
-            print(tpairs)
-            time, X = read_data1('../data/medium_cap/raw_medium_cap/run1', 
-                '../data/medium_cap/raw_medium_cap/bias.force',output_fmt='array',tpairlist=tpairs)
-            #each row of X is an observation
-            #each column of X is a variable
-            mu0[prim.value] = np.mean(X[:,subset],axis=0)
-            cov0[prim.value] = np.cov(X[:,subset],rowvar=False)
-        
-        """---------------------
-            Training
-        ------------------------"""
-        # Data to segment
+        # Train data
         time,X = read_data1('../data/medium_cap/raw_medium_cap/run1', 
             '../data/medium_cap/raw_medium_cap/bias.force',
             output_fmt='array',t0=0.0, t1 = 10.5)
         
-        # Initialize gmm and parameters
-        numIterTrain = 5
-        myConstraints = initializeConstraints()
+        # Init
         myGMM = GMM(X[:,subset])
         transition = initializeTransitionMatrix()
-        myGMM.initialize_clusters(n_primitives, means0=mu0, cov0=cov0, constraints=myConstraints)
 
-        # Train by running gmm for "run1" of the demonstration data    
-        print("-------- training on run1 -----------")
-        for i in range(numIterTrain):
-            if i == numIterTrain - 1: # save data on the last iteration
-                myGMM.expectation_step(t=time,saveFile="results/run1_likelihoods",T_matrix_APF=transition)
-            else: # T_matrix_APF implies that the expectation step is using an Augmented Particle Filter
-                myGMM.expectation_step(T_matrix_APF=transition)
-            myGMM.maximization_step()
-            print("it: {0:d} likelihood function {1:e}".format(i, myGMM.get_likelihood()))
+        print(">>>>>>>> TRAINING >>>>>>>>")
+        mu0,cov0 = myGMM.manual_labelling()
+        myGMM.train(mu0, cov0, numIterTrain, transition)
+   
+    else: 
+        # Test data
+        run_number=int(sys.argv[1])
+        testfile='../data/medium_cap/raw_medium_cap/run{0:d}'.format(run_number)
+        time,X = read_data1(testfile, '../data/medium_cap/raw_medium_cap/bias.force',output_fmt='array')
         
-        # Save training data
-        myGMM.save('references/mean', 'references/covar', 'references/pi')
+        # Init
+        mytestGMM = GMM(X[:,subset])
+        transition = initializeTransitionMatrix(final=True)
 
-        # Print training results
-        means = np.load('references/mean.npy')
-        covar = np.load('references/covar.npy')
-        print("-------- training results for run1 -----------")
-        for prim in [Pr.none, Pr.fsm, Pr.align, Pr.engage, Pr.screw, Pr.tighten]:
-            print("Means: ", prim)
-            for var in ('ang_vel_z', 'F_z'):
-                print("{0:s}: mu: {1:f} stdev ".format(var,means[prim.value][var_idxs[var]]),
-                    np.sqrt(covar[prim.value,var_idxs[var],var_idxs[var]])) 
+        print(">>>>>>>> TESTING >>>>>>>>")  
+        mytestGMM.test(run_number, numIterTest, transition)
 
-        # Plot by running the "main" in plot_data.py
-        os.system('python3 plot_data.py 1')
-        
+
     """---------------------
-        Testing
+        Update T Matrix
     ------------------------"""
     """ 
-        The following code will run iff you specify a run number on command line:
-            python gmm.py [run_number]
-
-        *note: a run is the raw sensor data corresponding to 
-        one human demonstration of the full task
+        - Update Transition Matrix based on all labelled runs
+        - Train and Test again
+        - Run this for several iterations until improved labelling 
+          success wrt manually labelled runs
     """
-    if len(sys.argv) < 2:
-        exit()
-    run_number=int(sys.argv[1])
-
-    # Test data
-    testfile='../data/medium_cap/raw_medium_cap/run{0:d}'.format(run_number)
-    time,X = read_data1(testfile, '../data/medium_cap/raw_medium_cap/bias.force',output_fmt='array')
-
-    # Initialize parameters
-    myConstraints = initializeConstraints()
-    numIterTest = 5
-    offset = 0.01
-    transition = initializeTransitionMatrix(final=True)
-    success = False
-
-    # Testing
-    print("-------- testing on: ",testfile, "-----------")
-    while not success and offset < 10000:
-        success = True
-        offset = offset*10
-        print("offset: ", offset)
-        mytestGMM = GMM(X[:,subset])
-        mytestGMM.offset = offset
-        try:
-            mytestGMM.initialize_clusters_from_savedfiles(n_primitives, 
-                'references/mean.npy', 'references/covar.npy', 'references/pi.npy',constraints=myConstraints)
-            for i in range(numIterTest):
-                if i == numIterTest - 1:
-                    mytestGMM.expectation_step(t=time,prefix="figures/run{0:d}_epoch".format(run_number),
-                        saveFile="results/run{0:d}_likelihoods".format(run_number),
-                        T_matrix_APF=transition)
-                else:
-                    mytestGMM.expectation_step(T_matrix_APF=transition)
-                
-                mytestGMM.maximization_step()
-                print("it: {0:d} likelihood  function {1:e}".format(i, mytestGMM.get_likelihood()))
-        
-        except Exception as e:
-            print("error: ", e)
-            success = False
-
-    # Save testing data
-    mytestGMM.save('references/meantest', 'references/covartest', 'references/pitest')
-    # mix_mean_covar_pi('references/mean.npy', 'references/covar.npy', 'references/pi.npy',
-    #     'references/meantest.npy', 'references/covartest.npy', 'references/pitest.npy',
-    #     1.0/run_number)
-
-    # Print testing results
-    means = np.load('references/meantest.npy')
-    covar = np.load('references/covartest.npy')
-    print("-------- testing results for: ",testfile, "-----------")
-    for prim in [Pr.none, Pr.fsm, Pr.align, Pr.engage, Pr.screw, Pr.tighten]:
-        print("Stats: ", prim)
-        for var in ('ang_vel_z', 'M_z'):
-            print("{0:s}: mu: {1:f} stdev ".format(var,means[prim.value][var_idxs[var]]),
-            np.sqrt(covar[prim.value,var_idxs[var],var_idxs[var]])) 
-
-    # Plot by running the "main" in plot_data.py
-    os.system('python3 plot_data.py '+str(run_number))
-
-
-
+    
