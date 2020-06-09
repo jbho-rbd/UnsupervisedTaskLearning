@@ -28,6 +28,8 @@ from sklearn.cluster import KMeans
 
 from read_data import read_data0, read_data1
 
+NUM_RUNS = 19
+
 """ --------------------------------------------------------------------------------------
    Utility Functions
 -----------------------------------------------------------------------------------------"""
@@ -44,20 +46,20 @@ class Pr(enum.Enum):
 
 def sample_primitive(p):
     """ 
-        Selects the primitive with the highest associated probability
-            Input:
-                p: (6,) numpy array representing the probability of each primitive
-            Output:
-                integer between 0-5 corresponding to the selected primitive(2,)
+    Selects the primitive with the highest associated probability
+        Input:
+            p: (6,) numpy array representing the probability of each primitive
+        Output:
+            integer between 0-5 corresponding to the selected primitive(2,)
     """
     return bisect.bisect(np.cumsum(p), random.random())
 
 def initializeTransitionMatrix(final=False):
     """ 
-            Input:
-                final: flag -> False for Training, True for Testing
-            Output:
-                array of size (6,6) containing conditional probabilities: T[pr_i|pr_j]
+        Input:
+            final: flag -> False for Training, True for Testing
+        Output:
+            array of size (6,6) containing conditional probabilities: T[pr_i|pr_j]
     """
     if final:
         T = np.zeros((6,6)) # you can only move between specified primitives (more restrictive)
@@ -97,6 +99,61 @@ def initializeTransitionMatrix(final=False):
 
     # scale values so they are all probabilities between 0-1
     T = np.transpose(T.transpose() / np.sum(T,axis=1))
+    return T
+
+def updateTransitionMatrix():
+    """ 
+        Input:
+            
+        Output:
+            array of size (6,6) containing conditional probabilities: T[pr_i|pr_j]
+    """
+    # number of runs: 1-19 but missing 11 and 16 was shit
+    #if updatedT already existed from another run, just add them up and then divide by the number of runs
+    T = np.zeros((6,6))
+    Tnext = np.zeros((6,6))
+
+    for i in range(1, NUM_RUNS):
+
+        # Read data
+        likelihoodsFile="results/run{0:d}_likelihoods".format(run_number)
+        likelihoods = np.genfromtxt(likelihoodsFile)
+
+        # Compute matrix entries
+        T[Pr.none.value, Pr.none.value] = 50
+        T[Pr.none.value, Pr.fsm.value] = 1
+        T[Pr.none.value, Pr.screw.value] = 1
+        #
+        T[Pr.fsm.value, Pr.fsm.value] = 50
+        T[Pr.fsm.value, Pr.align.value] = 1
+        # T[Pr.fsm.value, Pr.none.value] = 0.05
+        #
+        # T[Pr.align.value, Pr.fsm.value] = 0.0
+        T[Pr.align.value, Pr.align.value] = 50
+        # T[Pr.align.value, Pr.screw.value] = 0
+        T[Pr.align.value, Pr.engage.value] = 1
+        #
+        T[Pr.engage.value, Pr.engage.value] = 50
+        T[Pr.engage.value, Pr.none.value] = 1
+        T[Pr.engage.value, Pr.screw.value] = 1
+        # T[Pr.engage.value, Pr.tighten.value] = 0
+        # T[Pr.engage.value, Pr.screw.value] = 0.1
+        
+        # T[Pr.screw.value, Pr.none.value] = 0.5
+        T[Pr.screw.value, Pr.screw.value] = 50
+        T[Pr.screw.value, Pr.none.value] = 1
+        T[Pr.screw.value, Pr.tighten.value] = 1
+        # T[Pr.screw.value, Pr.engage.value] = 0
+        # T[Pr.screw.value, Pr.align.value] = 0
+
+        T[Pr.tighten.value, Pr.tighten.value] = 50
+        T[Pr.tighten.value, Pr.none.value] = 1
+        # T[Pr.tighten.value, Pr.screw.value] = 0
+
+        # scale values so they are all probabilities between 0-1
+        Tnext = np.transpose(T.transpose() / np.sum(T,axis=1))
+        T = (T + Tnext)/i
+
     return T
 
 def initializeConstraints():
@@ -617,6 +674,7 @@ if __name__ == "__main__":
     n_primitives = 6  
     numIterTrain = 5
     numIterTest = 5  
+    numTMatrixUpdates = 3
 
     # Dictionary for the raw sensor data
     var_idxs = { 
@@ -654,47 +712,60 @@ if __name__ == "__main__":
 
     """
     TRAINING AND TESTING
-        labelling and training will run if and only if you don't pass any run numbers
-        otherwise it will just test
+        -- Labelling and training will run if and only if you don't pass any run numbers
+           otherwise it will just test
+        -- Cycle: 
+            1) Manually label run1 to get mu0,cov0
+            2) Train on run1 using mu0, cov0 as seeds
+            3) Test on the rest of the runs
+            4) Update Transition Matrix based on all the labelled runs
+            5) Train on 1 and Test on the rest again
+            6) Repeat steps 4 and 5 for several iterations until labelling success wrt manually labelled runs improves
     """
-    trainingFlag = len(sys.argv) < 2 
+    # trainingFlag = len(sys.argv) < 2 
     myConstraints = initializeConstraints()
 
-    if trainingFlag:  
-        # Train data
+    for i in range(numTMatrixUpdates):
+
+        # ---------Train on run 1  
+        # if trainingFlag:         
         time,X = read_data1('../data/medium_cap/raw_medium_cap/run1', 
             '../data/medium_cap/raw_medium_cap/bias.force',
             output_fmt='array',t0=0.0, t1 = 10.5)
         
         # Init
         myGMM = GMM(X[:,subset])
-        transition = initializeTransitionMatrix()
+        if i == 0:
+            transition = initializeTransitionMatrix()
+        else: 
+            transition = updatedTransition
 
+        # Run training gmm
         print(">>>>>>>> TRAINING >>>>>>>>")
         mu0,cov0 = myGMM.manual_labelling()
         myGMM.train(mu0, cov0, numIterTrain, transition)
-   
-    else: 
-        # Test data
-        run_number=int(sys.argv[1])
-        testfile='../data/medium_cap/raw_medium_cap/run{0:d}'.format(run_number)
-        time,X = read_data1(testfile, '../data/medium_cap/raw_medium_cap/bias.force',output_fmt='array')
+
+        # for T update
+        prevT = transition
+        numRunsDone = numRunsDone + 1
         
-        # Init
-        mytestGMM = GMM(X[:,subset])
-        transition = initializeTransitionMatrix(final=True)
+        # ---------Test on runs 1-19 (11 is missing and 16 is shit)
+        # else: 
+        for run_number in range(2, NUM_RUNS):
+            # run_number=int(sys.argv[1])
+            testfile='../data/medium_cap/raw_medium_cap/run{0:d}'.format(run_number)
+            time,X = read_data1(testfile, '../data/medium_cap/raw_medium_cap/bias.force',output_fmt='array')
+            
+            # Init
+            mytestGMM = GMM(X[:,subset])
+            if i == 0:
+                transition = initializeTransitionMatrix(final=True)
+            else: 
+                transition = updatedTransition
 
-        print(">>>>>>>> TESTING >>>>>>>>")  
-        mytestGMM.test(run_number, numIterTest, transition)
+            # Run testing gmm
+            print(">>>>>>>> TESTING >>>>>>>>")  
+            mytestGMM.test(run_number, numIterTest, transition)
 
+        updatedTransition = updateTransitionMatrix()    
 
-    """---------------------
-        Update T Matrix
-    ------------------------"""
-    """ 
-        - Update Transition Matrix based on all labelled runs
-        - Train and Test again
-        - Run this for several iterations until improved labelling 
-          success wrt manually labelled runs
-    """
-    
