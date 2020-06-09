@@ -29,6 +29,7 @@ from sklearn.cluster import KMeans
 from read_data import read_data0, read_data1
 
 NUM_RUNS = 19
+NUM_PRIMITIVES = 6
 
 """ --------------------------------------------------------------------------------------
    Utility Functions
@@ -116,39 +117,15 @@ def updateTransitionMatrix():
     for i in range(1, NUM_RUNS):
 
         # Read data
-        likelihoodsFile="results/run{0:d}_likelihoods".format(run_number)
+        likelihoodsFile="results/run{0:d}_likelihoods".format(i)
         likelihoods = np.genfromtxt(likelihoodsFile)
 
         # Compute matrix entries
-        T[Pr.none.value, Pr.none.value] = 50
-        T[Pr.none.value, Pr.fsm.value] = 1
-        T[Pr.none.value, Pr.screw.value] = 1
-        #
-        T[Pr.fsm.value, Pr.fsm.value] = 50
-        T[Pr.fsm.value, Pr.align.value] = 1
-        # T[Pr.fsm.value, Pr.none.value] = 0.05
-        #
-        # T[Pr.align.value, Pr.fsm.value] = 0.0
-        T[Pr.align.value, Pr.align.value] = 50
-        # T[Pr.align.value, Pr.screw.value] = 0
-        T[Pr.align.value, Pr.engage.value] = 1
-        #
-        T[Pr.engage.value, Pr.engage.value] = 50
-        T[Pr.engage.value, Pr.none.value] = 1
-        T[Pr.engage.value, Pr.screw.value] = 1
-        # T[Pr.engage.value, Pr.tighten.value] = 0
-        # T[Pr.engage.value, Pr.screw.value] = 0.1
-        
-        # T[Pr.screw.value, Pr.none.value] = 0.5
-        T[Pr.screw.value, Pr.screw.value] = 50
-        T[Pr.screw.value, Pr.none.value] = 1
-        T[Pr.screw.value, Pr.tighten.value] = 1
-        # T[Pr.screw.value, Pr.engage.value] = 0
-        # T[Pr.screw.value, Pr.align.value] = 0
-
-        T[Pr.tighten.value, Pr.tighten.value] = 50
-        T[Pr.tighten.value, Pr.none.value] = 1
-        # T[Pr.tighten.value, Pr.screw.value] = 0
+        for j in range(NUM_PRIMITIVES): 
+            # Find max value in each row and assign it a number from 0 to 5 depending on which column the max value is in
+            # if this row is 0 and next row 0 then T[0,0] += 1
+            # if this row is 0 and next row 1 then T[0,1] += 1
+            # explore all combinations doing this
 
         # scale values so they are all probabilities between 0-1
         Tnext = np.transpose(T.transpose() / np.sum(T,axis=1))
