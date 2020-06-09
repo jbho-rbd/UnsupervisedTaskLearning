@@ -177,7 +177,10 @@ class GMM:
         self.epoch = 0;
         self.offset = offset
     
-    def initialize_clusters(self, n_clusters, constraints=None, means0=None, cov0=None):#each cluster is a primitive
+    def initialize_clusters(self, n_clusters, constraints=None, means0=None, cov0=None):
+        """
+            Each cluster is a primitive
+        """
         self.clusters = []
         self.n_clusters = n_clusters
         idx = np.arange(X.shape[0])
@@ -213,7 +216,10 @@ class GMM:
                 self.clusters[i]['constraint_k'] = constraints[i]
         return self.clusters
     
-    def initialize_clusters_from_savedfiles(self, n_clusters, meanfile,covfile,pifile, constraints=None):#each cluster is a primitive
+    def initialize_clusters_from_savedfiles(self, n_clusters, meanfile,covfile,pifile, constraints=None):
+        """
+            Each cluster is a primitive
+        """
         self.clusters = []
         self.n_clusters = n_clusters
         mu_k = np.load(meanfile)
@@ -239,9 +245,10 @@ class GMM:
             cluster['cov_k'] = factor*cluster['cov_k']
 
     def expectation_step(self,t=None,prefix="figures/likelihood",saveFile=None,T_matrix_APF=None, T_matrix_standard=None):
-        # computes realisations or whatever you wanna call them
-        # computes p(belong to primitive | X) for each X
-        # this could possibly be replaced with the particle filter
+        """
+            Output: omputes p(belong to primitive | X) for each X
+            Uses: a particle filter with a heuristic forward model: T(sn | sn-1) 
+        """
         plotFlag = t is not None
         if plotFlag:
             f,ax = plt.subplots(1)
@@ -351,11 +358,11 @@ class GMM:
     def apf_expectation(self,T_forward):
         """ 
         auxiliary particle filter: https://people.maths.bris.ac.uk/~manpw/apf_chapter.pdf
-        Input:
-          observations: states Starting from T=1
-          pose_0: (4,4) numpy arrays, starting pose
-        Output:
-          p_primitives (N x n_primtives probability array)
+            Input:
+              observations: states Starting from T=1
+              pose_0: (4,4) numpy arrays, starting pose
+            Output:
+              p_primitives (N x n_primtives probability array)
         """
         N = self.X.shape[0]
         likelihoods = np.zeros((self.X.shape[0], self.n_clusters))
@@ -416,6 +423,11 @@ class GMM:
         self.offset = max(self.offset*0.5, 0.1)
 
     def maximization_step(self):
+        """
+            Gaussian: p ( X| s , μ , Σ ) 
+            Optimize μ , Σ  max likelihood
+            Heuristic constraints on μ , Σ
+        """
         N = float(self.X.shape[0])
         
         for kk, cluster in enumerate(self.clusters):
@@ -581,7 +593,7 @@ if __name__ == "__main__":
                 print("{0:s}: mu: {1:f} stdev ".format(var,means[prim.value][var_idxs[var]]),
                     np.sqrt(covar[prim.value,var_idxs[var],var_idxs[var]])) 
 
-        # Run the "main" in plot_data.py
+        # Plot by running the "main" in plot_data.py
         os.system('python3 plot_data.py 1')
         
     """---------------------
@@ -597,13 +609,18 @@ if __name__ == "__main__":
     if len(sys.argv) < 2:
         exit()
     run_number=int(sys.argv[1])
+
+    # Test data
     testfile='../data/medium_cap/raw_medium_cap/run{0:d}'.format(run_number)
-    print("-------- testing: ",testfile, "-----------")
     time,X = read_data1(testfile, '../data/medium_cap/raw_medium_cap/bias.force',output_fmt='array')
+
+    # Initialize parameters
+    numIterTest = 5
     offset = 0.01
     transition = initializeTransitionMatrix(final=True)
     success = False
-    numIterTest = 5
+
+    # Testing
     while not success and offset < 10000:
         success = True
         offset = offset*10
@@ -611,7 +628,8 @@ if __name__ == "__main__":
         mytestGMM = GMM(X[:,subset])
         mytestGMM.offset = offset
         try:
-            mytestGMM.initialize_clusters_from_savedfiles(n_primitives, 'references/mean.npy', 'references/covar.npy', 'references/pi.npy',constraints=myConstraints)
+            mytestGMM.initialize_clusters_from_savedfiles(n_primitives, 
+                'references/mean.npy', 'references/covar.npy', 'references/pi.npy',constraints=myConstraints)
             for i in range(numIterTest):
                 if i == numIterTest - 1:
                     mytestGMM.expectation_step(t=time,prefix="figures/run{0:d}_epoch".format(run_number),
@@ -627,17 +645,23 @@ if __name__ == "__main__":
             print("error: ", e)
             success = False
 
+    # Save testing data
     mytestGMM.save('references/meantest', 'references/covartest', 'references/pitest')
     # mix_mean_covar_pi('references/mean.npy', 'references/covar.npy', 'references/pi.npy',
     #     'references/meantest.npy', 'references/covartest.npy', 'references/pitest.npy',
     #     1.0/run_number)
+
+    # Print testing results
     means = np.load('references/meantest.npy')
     covar = np.load('references/covartest.npy')
+    print("-------- testing: ",testfile, "-----------")
     for prim in [Pr.none, Pr.fsm, Pr.align, Pr.engage, Pr.screw, Pr.tighten]:
         print("Stats: ", prim)
         for var in ('ang_vel_z', 'M_z'):
             print("{0:s}: mu: {1:f} stdev ".format(var,means[prim.value][var_idxs[var]]),
             np.sqrt(covar[prim.value,var_idxs[var],var_idxs[var]])) 
+
+    # Plot by running the "main" in plot_data.py
     os.system('python3 plot_data.py '+str(run_number))
 
 
