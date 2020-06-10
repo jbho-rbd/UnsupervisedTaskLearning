@@ -151,7 +151,7 @@ def getlabels(likelihoodfile, tlabelFile = None, prlabelFile = None):
     tlist.append(t[-1])
     np.savetxt(tlabelFile,tlist)
     np.savetxt(prlabelFile,prlist)
-    return tlist, prlist, prs
+
 def compute_success_rate(likelihoodfile, tlabelFile_groundTruth, prlabelFile_groundTruth, failureFile):
     dat = np.genfromtxt(likelihoodfile)
     t = dat[:,0]
@@ -214,9 +214,11 @@ if __name__ == "__main__":
     # plot_file('../data/medium_cap/raw_medium_cap/run{0:d}'.format(run_number))
     # plot_file('../data/medium_cap/raw_medium_cap/run{0:d}'.format(run_number),tlabelfile="../data/medium_cap/raw_medium_cap/run{0:d}_tlabels".format(run_number),prlabelfile="../data/medium_cap/raw_medium_cap/run{0:d}_prmlabels".format(run_number))
     
-    #---make labels for graphing etc.---
-    dummya, dummyb, prs = getlabels("results/run{0:d}_likelihoods".format(run_number), tlabelFile="results/run{0:d}_tlabels".format(run_number), prlabelFile="results/run{0:d}_prmlabels".format(run_number))
-    #---save data for training --------
+    #--- saving tlabels and prmlabels from likelihoods files  ----
+    # dummya, dummyb, prs = getlabels("results/run{0:d}_likelihoods".format(run_number), tlabelFile="results/run{0:d}_tlabels".format(run_number), prlabelFile="results/run{0:d}_prmlabels".format(run_number))
+    getlabels("results/run{0:d}_likelihoods".format(run_number), tlabelFile="results/run{0:d}_tlabels".format(run_number), prlabelFile="results/run{0:d}_prmlabels".format(run_number))
+    
+
     # time, X = read_data1('../data/medium_cap/raw_medium_cap/run' + str(run_number), '../data/medium_cap/raw_medium_cap/bias.force',output_fmt='array')
     # N = len(prs)
     # headerstr = "time pos_x pos_y pos_z ori_x ori_y ori_z vel_x vel_y vel_z angvel_x angvel_y angvel_z Fx Fy Fz Mx My Mz Pr"
@@ -224,9 +226,10 @@ if __name__ == "__main__":
     # np.savetxt("../data/medium_cap/manually_labelled/run{0:d}_labelled".format(run_number),
     #     write_Pr_file(time,X,"../data/medium_cap/raw_medium_cap/run{0:d}_tlabels".format(run_number),"../data/medium_cap/raw_medium_cap/run{0:d}_prmlabels".format(run_number)),
     #     header=headerstr)
-    #---success rate----
+    #--- compute and plot success rate
     success_rate = compute_success_rate("results/run{0:d}_likelihoods".format(run_number), "../data/medium_cap/raw_medium_cap/run{0:d}_tlabels".format(run_number),"../data/medium_cap/raw_medium_cap/run{0:d}_prmlabels".format(run_number),"failcount.dat")
     print("success_rate: {0:f}".format(success_rate))
+    
     #---plotting
     # rc('text',usetex=True)
     # rcParams['axes.titlesize'] = 'x-large'
@@ -234,7 +237,7 @@ if __name__ == "__main__":
     # rcParams['xtick.labelsize'] = 'x-large'
     # rcParams['ytick.labelsize'] = 'x-large'
 
-    # plot_file('../data/medium_cap/raw_medium_cap/run{0:d}'.format(run_number),tlabelfile="results/run{0:d}_tlabels".format(run_number),prlabelfile="results/run{0:d}_prmlabels".format(run_number))
+    #plot_file('../data/medium_cap/raw_medium_cap/run{0:d}'.format(run_number),tlabelfile="results/run{0:d}_tlabels".format(run_number),prlabelfile="results/run{0:d}_prmlabels".format(run_number))
     # plot_file('../data/medium_cap/raw_medium_cap/run{0:d}'.format(run_number),
     #     tlabelfile="results/run{0:d}_tlabels".format(run_number),prlabelfile="results/run{0:d}_prmlabels".format(run_number),
     #     tlabelfileTruth="../data/medium_cap/raw_medium_cap/run{0:d}_tlabels".format(run_number),prlabelfileTruth="../data/medium_cap/raw_medium_cap/run{0:d}_prmlabels".format(run_number)
