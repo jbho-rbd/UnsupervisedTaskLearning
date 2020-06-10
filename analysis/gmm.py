@@ -320,13 +320,13 @@ class GMM:
         for cluster in self.clusters:
             cluster['cov_k'] = factor*cluster['cov_k']
 
-    def expectation_step(self,t=None,prefix="figures/likelihood",saveFile=None,T_matrix_APF=None, T_matrix_standard=None):
+    def expectation_step(self,t=None, saveFigure = None, saveFile=None,T_matrix_APF=None, T_matrix_standard=None):
         """
             Output: computes p(belong to primitive | X) for each X
             It saves these likelihoods to a .txt
             Uses: a particle filter with a heuristic forward model: T(sn | sn-1) 
         """
-        plotFlag = t is not None
+        plotFlag = t is not None and saveFigure is not None
         if plotFlag:
             f,ax = plt.subplots(1)
         if T_matrix_APF is not None:
@@ -340,8 +340,8 @@ class GMM:
                 ax.plot(t,cluster['gamma_nk'],label=Pr(kk))
         if plotFlag:
             ax.legend()
-            ax.set_title("Epoch: {0:d}, Likelihood: {1:e}".format(self.epoch, self.get_likelihood()))
-            plt.savefig(prefix+"{0:d}.png".format(self.epoch),dpi=600)
+            ax.set_title("Primitive Probabilities (after {0:d} epochs)".format(self.epoch))
+            plt.savefig(saveFigure, dpi=600)
             # plt.show()
         self.epoch += 1
         # Save likelihoods to txt file:
@@ -584,7 +584,7 @@ class GMM:
             cov0[prim.value] = np.cov(X[:,subset],rowvar=False)
         return mu0,cov0
 
-    def train(self, mu0, cov0, numIterTrain, transition, currentNumTupdates):
+    def train(self, mu0, cov0, numIterTrain, transition, currentNumTupdates, time):
         """---------------------
             Training
         ------------------------"""  
@@ -595,8 +595,13 @@ class GMM:
         # Train by running gmm for "run1" of the demonstration data    
         print("-------> training run1 ")
         for i in range(numIterTrain):
-            if i == numIterTrain - 1: # save data on the last iteration
-                self.expectation_step(t=time,saveFile=likelihoods_fileName,T_matrix_APF=transition)
+            if i == numIterTrain - 1: # save and plot likelihoods on the last iteration
+                likelihoods_figName = "figures/run1_likelihoods_epochs{0:d}_T{1:d}.png".format(self.epoch, currentNumTupdates)
+                self.expectation_step(
+                    t=time,
+                    saveFigure = likelihoods_figName, 
+                    saveFile=likelihoods_fileName,
+                    T_matrix_APF=transition)
             else: # T_matrix_APF implies that the expectation step is using an Augmented Particle Filter
                 self.expectation_step(T_matrix_APF=transition)
             self.maximization_step()
@@ -627,7 +632,7 @@ class GMM:
 
 
     
-    def test(self, run_number, numIterTest, transition, currentNumTupdates):
+    def test(self, run_number, numIterTest, transition, currentNumTupdates, time):
         """---------------------
         Testing
         ------------------------"""
@@ -653,8 +658,11 @@ class GMM:
                 self.initialize_clusters_from_savedfiles(n_primitives, 
                     'references/mean.npy', 'references/covar.npy', 'references/pi.npy',constraints=myConstraints)
                 for i in range(numIterTest):
-                    if i == numIterTest - 1:
-                        self.expectation_step(t=time,prefix="figures/run{0:d}_epoch".format(run_number),
+                    if i == numIterTest - 1: # save and plot likelihoods on the last iteration
+                        likelihoods_figName = "figures/run{0:d}_likelihoods_epochs{1:d}_T{2:d}.png".format(run_number, self.epoch, currentNumTupdates)
+                        self.expectation_step(
+                            t=time,
+                            saveFigure = likelihoods_figName,
                             saveFile = likelihoods_fileName,
                             T_matrix_APF=transition)
                     else:
@@ -782,7 +790,7 @@ if __name__ == "__main__":
         # Run training gmm
         print(">>>>>>>> TRAINING >>>>>>>>")
         mu0,cov0 = myGMM.manual_labelling()
-        myGMM.train(mu0, cov0, numIterTrain, transition, i)
+        myGMM.train(mu0, cov0, numIterTrain, transition, i, time)
         
         # ---------Test on runs 2-19 
         # else: 
@@ -808,7 +816,7 @@ if __name__ == "__main__":
 
             # Run testing gmm
             print(">>>>>>>> TESTING >>>>>>>>")  
-            mytestGMM.test(run_number, numIterTest, transition, i)
+            mytestGMM.test(run_number, numIterTest, transition, i, time)
 
         updatedTransition = updateTransitionMatrix(i) 
         # print(">>>>>>>> T matrix UPDATE >>>>>>>>")
