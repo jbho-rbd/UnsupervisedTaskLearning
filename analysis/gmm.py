@@ -36,7 +36,7 @@ NUM_RUNS = 3
 n_primitives = 6  
 numIterTrain = 2
 numIterTest = 2 
-numTMatrixUpdates = 2
+numTMatrixUpdates = 3
 
 """ --------------------------------------------------------------------------------------
    Utility Functions
@@ -358,15 +358,12 @@ class GMM:
             for kk, cluster in enumerate(self.clusters):
                 self.likelihoods[:,kk] = gaussian(self.X, cluster['mu_k'], cluster['cov_k']).astype(np.float64)
             likelihoods1 = np.zeros((self.X.shape[0],self.n_clusters))#first index time, second index different clusters
-            # likelihoods1[1:] = self.likelihoods[:-1].dot(T_matrix)
-            # likelihoods1[0,:] = self.likelihoods[0,:]
             likelihoods1[-1,:] = self.likelihoods[-1,:]
             for t in range(self.X.shape[0]-1):
                 for s in range(self.n_clusters):
                     for safter in range(self.n_clusters):
                         likelihoods1[t,s] += (1
                             *T_matrix[s,safter]*self.likelihoods[t+1,safter])
-                # likelihoods1[t,:] /= np.sum(likelihoods1[t,:])
         for kk, cluster in enumerate(self.clusters):
             if T_matrix is not None:
                 gamma_nk = likelihoods1[:,kk]*self.likelihoods[:,kk]
@@ -484,11 +481,8 @@ class GMM:
               alpha[particle] = alpha[i]
             n_particles_allocated = n
           #finished resample
-          # for s1, cluster1 in enumerate(self.clusters):
-          #   ps[s1] = (gaussian(self.X[t+1], cluster1['mu_k'], cluster1['cov_k'])).astype(np.float64)
           for i in range(N_particles):
             s[i,t+1]=forward_model_primitive(s[i,t],mixWithIdentity(T_forward,alpha[i]))
-            # weights[i] = ps[s[i,t+1]]*T_forward(s[i,t],s[i,t+1])/
           #count primtivies
           temp = collections.Counter(s[:,t])
           for kk in range(self.n_clusters):
@@ -533,7 +527,6 @@ class GMM:
                                 cov_k[:,constraint[0]] = scalefactor*cov_k[:,constraint[0]]
 
             cov_k /= N_k
-            # print("Cluster[{0:d}] cond: {1:e}, N_k: {2:e}".format(kk,np.linalg.cond(cov_k), N_k))
             
             cluster['pi_k'] = pi_k
             cluster['mu_k'] = mu_k
@@ -574,8 +567,6 @@ class GMM:
             for i in range(len(labels)):#collect different labels and time periods corresponding to this primitive
                 if(labels[i] == prim):
                     tpairs.append([tlabels[i],tlabels[i+1]])
-            # print("Primitive: {0:s}".format(Pr(prim)))
-            # print(tpairs)
             time, X = read_data1('../data/medium_cap/raw_medium_cap/run1', 
                 '../data/medium_cap/raw_medium_cap/bias.force',output_fmt='array',tpairlist=tpairs)
             #each row of X is an observation
@@ -616,22 +607,13 @@ class GMM:
         
         # Save tlabels and prmlabels from likelihoods files  
         getlabels(likelihoods_fileName, tlabelFile=tlabels_fileName, prlabelFile=prmlabels_fileName)
+        
         # Compute. save and plot success rate
         success_rate = compute_success_rate(likelihoods_fileName, manual_tlabels, manual_prmlabels)
         saveSuccessRateFile(success_fileName, success_rate, currentNumTupdates)
         print("-------> training success_rate run1: {0:f}".format(success_rate))
-
-        # for prim in [Pr.none, Pr.fsm, Pr.align, Pr.engage, Pr.screw, Pr.tighten]:
-        #     print("Means: ", prim)
-        #     for var in ('ang_vel_z', 'F_z'):
-        #         print("{0:s}: mu: {1:f} stdev ".format(var,means[prim.value][var_idxs[var]]),
-        #             np.sqrt(covar[prim.value,var_idxs[var],var_idxs[var]])) 
-
-        # Plot and print success_rate by running the "main" in plot_data.py
-        # os.system('python3 plot_data.py 1')
-
-
     
+
     def test(self, run_number, numIterTest, transition, currentNumTupdates, time):
         """---------------------
         Testing
@@ -677,33 +659,19 @@ class GMM:
 
         # Save testing data
         self.save('references/meantest', 'references/covartest', 'references/pitest')
-        # mix_mean_covar_pi('references/mean.npy', 'references/covar.npy', 'references/pi.npy',
-        #     'references/meantest.npy', 'references/covartest.npy', 'references/pitest.npy',
-        #     1.0/run_number)
 
         # Print testing results
         means = np.load('references/meantest.npy')
         covar = np.load('references/covartest.npy')
         
-        # print("-------- testing results for: ",testfile, "-----------")
         # Save tlabels and prmlabels from likelihoods files  
         getlabels(likelihoods_fileName, tlabelFile=tlabels_fileName, prlabelFile=prmlabels_fileName)
+        
         # Compute, save and plot success rate
         success_rate = compute_success_rate(likelihoods_fileName, manual_tlabels, manual_prmlabels)
         saveSuccessRateFile(success_fileName, success_rate, currentNumTupdates)
         print("-------> testing success_rate run{0:d}: {1:f}".format(run_number, success_rate))
-        
-        # for prim in [Pr.none, Pr.fsm, Pr.align, Pr.engage, Pr.screw, Pr.tighten]:
-        #     print("Stats: ", prim)
-        #     for var in ('ang_vel_z', 'M_z'):
-        #         print("{0:s}: mu: {1:f} stdev ".format(var,means[prim.value][var_idxs[var]]),
-        #         np.sqrt(covar[prim.value,var_idxs[var],var_idxs[var]])) 
-
-        # Plot and print success_rate by running the "main" in plot_data.py
-        # os.system('python3 plot_data.py '+str(run_number))
-
-
-
+ 
 
 """ --------------------------------------------------------------------------------------
    Main
@@ -766,24 +734,23 @@ if __name__ == "__main__":
             5) Train on 1 and Test on the rest again
             6) Repeat steps 4 and 5 for several iterations until labelling success wrt manually labelled runs improves
     """
-    # trainingFlag = len(sys.argv) < 2 
     myConstraints = initializeConstraints()
 
     for i in range(numTMatrixUpdates):
 
-        # ---------Train on run 1  
-        # if trainingFlag:         
+        # ------------------------
+        #       Train on run 1  
+        # ------------------------
         time,X = read_data1('../data/medium_cap/raw_medium_cap/run1', 
             '../data/medium_cap/raw_medium_cap/bias.force',
             output_fmt='array',t0=0.0, t1 = 10.5)
         
         # Init
         myGMM = GMM(X[:,subset])
+        
         if i == 0:
             transition = initializeTransitionMatrix()
             createSuccessRateFile(1,i)
-            # print(">>>>>>>> Original Train Transition: ")
-            # print(transition)
         else: 
             transition = updatedTransition
 
@@ -792,24 +759,24 @@ if __name__ == "__main__":
         mu0,cov0 = myGMM.manual_labelling()
         myGMM.train(mu0, cov0, numIterTrain, transition, i, time)
         
-        # ---------Test on runs 2-19 
-        # else: 
+        # --------------------------
+        #       Test on runs 2-19 
+        # --------------------------
         for run_number in range(2, NUM_RUNS):
+            
             # run 11 is missing and 16 is shit
             if run_number == 11 or run_number == 16:
                 continue
-            # run_number=int(sys.argv[1])
             testfile='../data/medium_cap/raw_medium_cap/run{0:d}'.format(run_number)
             time,X = read_data1(testfile, '../data/medium_cap/raw_medium_cap/bias.force',output_fmt='array')
             
             # Init
             mytestGMM = GMM(X[:,subset])
+            
             if i == 0:
                 transition = initializeTransitionMatrix(final=True)
                 np.savetxt("transitions/T_0", transition)   
                 createSuccessRateFile(run_number,i)
-                # print(">>>>>>>> Original Test Transition: ")
-                # print(transition)
 
             else: 
                 transition = updatedTransition
@@ -818,11 +785,9 @@ if __name__ == "__main__":
             print(">>>>>>>> TESTING >>>>>>>>")  
             mytestGMM.test(run_number, numIterTest, transition, i, time)
 
+        # Update Transition Matrix
         updatedTransition = updateTransitionMatrix(i) 
-        # print(">>>>>>>> T matrix UPDATE >>>>>>>>")
-        # print(">>>>>>>> T matrix Update #"+str(i+1) + " Tupdated = " )
         print(">>>>>>>> T matrix Update #"+str(i+1))
-        # print(updatedTransition)
         tnum = i+1
         transitionFileName = "transitions/T_{0:d}".format(tnum)
         np.savetxt(transitionFileName, updatedTransition)   
