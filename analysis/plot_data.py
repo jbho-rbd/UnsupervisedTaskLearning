@@ -159,11 +159,14 @@ if __name__ == "__main__":
     #--- saving tlabels and prmlabels from likelihoods files  ----
     # dummya, dummyb, prs = getlabels("results/run{0:d}_likelihoods".format(run_number), tlabelFile="results/run{0:d}_tlabels".format(run_number), prlabelFile="results/run{0:d}_prmlabels".format(run_number))
     getlabels("results/run{0:d}_likelihoods".format(run_number), tlabelFile="results/run{0:d}_tlabels".format(run_number), prlabelFile="results/run{0:d}_prmlabels".format(run_number))
+    
+
     # time, X = read_data1('../data/medium_cap/raw_medium_cap/run' + str(run_number), '../data/medium_cap/raw_medium_cap/bias.force',output_fmt='array')
     # N = len(time)
     # headerstr = "time pos_x pos_y pos_z ori_x ori_y ori_z vel_x vel_y vel_z angvel_x angvel_y angvel_z Fx Fy Fz Mx My Mz Pr"
     # np.savetxt("../data/medium_cap/raw_medium_cap/run{0:d}_labelled".format(run_number),np.hstack((np.reshape(time,(N,1)), X, np.reshape(prs,(N,1)))),header=headerstr)
 
+    #--- compute and plot success rate
     success_rate = compute_success_rate("results/run{0:d}_likelihoods".format(run_number), "../data/medium_cap/raw_medium_cap/run{0:d}_tlabels".format(run_number),"../data/medium_cap/raw_medium_cap/run{0:d}_prmlabels".format(run_number))
     print("success_rate: {0:f}".format(success_rate))
     

@@ -226,7 +226,23 @@ def createFileNames(run_number, currentNumTupdates):
     prmlabels_fileName = "results/run{0:d}_prmlabels_T{1:d}".format(run_number, currentNumTupdates)
     manual_tlabels = "../data/medium_cap/raw_medium_cap/run{0:d}_tlabels".format(run_number)
     manual_prmlabels = "../data/medium_cap/raw_medium_cap/run{0:d}_prmlabels".format(run_number)
-    return likelihoods_fileName, tlabels_fileName, prmlabels_fileName, manual_tlabels, manual_prmlabels
+    success_fileName = "results/run{0:d}_successRates".format(run_number)
+    return likelihoods_fileName, tlabels_fileName, prmlabels_fileName, manual_tlabels, manual_prmlabels, success_fileName
+
+def createSuccessRateFile(run_number, currentNumTupdates):
+    """
+    Saves the success rates for a give run
+    Each row corresponds to an updated transition matrix
+    """
+    successRate_fileName = "results/run{0:d}_successRates".format(run_number)
+    successRate_file = open(successRate_fileName,"w")
+    successRate_file.write("Tmatrix # \t SuccessRate\n")
+    successRate_file.close()
+
+def saveSuccessRateFile(fileName, successRate, currentNumTupdates):
+    successRate_file = open(fileName,"a")
+    successRate_file.write(("{:d} \t\t\t {:.4e}\n").format(currentNumTupdates, successRate))
+    successRate_file.close()
 
 """ --------------------------------------------------------------------------------------
    Gaussian Mixture Model Class 
@@ -571,8 +587,9 @@ class GMM:
     def train(self, mu0, cov0, numIterTrain, transition, currentNumTupdates):
         """---------------------
             Training
-        ------------------------"""    
-        likelihoods_fileName, tlabels_fileName, prmlabels_fileName, manual_tlabels, manual_prmlabels = createFileNames(1,currentNumTupdates)  
+        ------------------------"""  
+        # Init  
+        likelihoods_fileName, tlabels_fileName, prmlabels_fileName, manual_tlabels, manual_prmlabels, success_fileName = createFileNames(1,currentNumTupdates)  
         self.initialize_clusters(n_primitives, means0=mu0, cov0=cov0, constraints=myConstraints)
 
         # Train by running gmm for "run1" of the demonstration data    
@@ -594,8 +611,9 @@ class GMM:
         
         # Save tlabels and prmlabels from likelihoods files  
         getlabels(likelihoods_fileName, tlabelFile=tlabels_fileName, prlabelFile=prmlabels_fileName)
-        # Compute and plot success rate
+        # Compute. save and plot success rate
         success_rate = compute_success_rate(likelihoods_fileName, manual_tlabels, manual_prmlabels)
+        saveSuccessRateFile(success_fileName, success_rate, currentNumTupdates)
         print("-------> training success_rate run1: {0:f}".format(success_rate))
 
         # for prim in [Pr.none, Pr.fsm, Pr.align, Pr.engage, Pr.screw, Pr.tighten]:
@@ -622,7 +640,7 @@ class GMM:
         """
         offset = 0.01
         success = False
-        likelihoods_fileName, tlabels_fileName, prmlabels_fileName, manual_tlabels, manual_prmlabels = createFileNames(run_number,currentNumTupdates)
+        likelihoods_fileName, tlabels_fileName, prmlabels_fileName, manual_tlabels, manual_prmlabels, success_fileName = createFileNames(run_number,currentNumTupdates)
 
         # Testing
         print("-------> testing on: ",testfile, "-----------")
@@ -662,8 +680,9 @@ class GMM:
         # print("-------- testing results for: ",testfile, "-----------")
         # Save tlabels and prmlabels from likelihoods files  
         getlabels(likelihoods_fileName, tlabelFile=tlabels_fileName, prlabelFile=prmlabels_fileName)
-        # Compute and plot success rate
+        # Compute, save and plot success rate
         success_rate = compute_success_rate(likelihoods_fileName, manual_tlabels, manual_prmlabels)
+        saveSuccessRateFile(success_fileName, success_rate, currentNumTupdates)
         print("-------> testing success_rate run{0:d}: {1:f}".format(run_number, success_rate))
         
         # for prim in [Pr.none, Pr.fsm, Pr.align, Pr.engage, Pr.screw, Pr.tighten]:
@@ -754,6 +773,7 @@ if __name__ == "__main__":
         myGMM = GMM(X[:,subset])
         if i == 0:
             transition = initializeTransitionMatrix()
+            createSuccessRateFile(1,i)
             # print(">>>>>>>> Original Train Transition: ")
             # print(transition)
         else: 
@@ -764,7 +784,7 @@ if __name__ == "__main__":
         mu0,cov0 = myGMM.manual_labelling()
         myGMM.train(mu0, cov0, numIterTrain, transition, i)
         
-        # ---------Test on runs 1-19 
+        # ---------Test on runs 2-19 
         # else: 
         for run_number in range(2, NUM_RUNS):
             # run 11 is missing and 16 is shit
@@ -779,6 +799,7 @@ if __name__ == "__main__":
             if i == 0:
                 transition = initializeTransitionMatrix(final=True)
                 np.savetxt("transitions/T_0", transition)   
+                createSuccessRateFile(run_number,i)
                 # print(">>>>>>>> Original Test Transition: ")
                 # print(transition)
 
@@ -797,3 +818,6 @@ if __name__ == "__main__":
         tnum = i+1
         transitionFileName = "transitions/T_{0:d}".format(tnum)
         np.savetxt(transitionFileName, updatedTransition)   
+
+
+
