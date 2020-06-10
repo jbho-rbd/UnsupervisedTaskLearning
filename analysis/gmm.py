@@ -65,7 +65,7 @@ def initializeTransitionMatrix(final=False):
     T[Pr.tighten.value, Pr.tighten.value] = 50
     T[Pr.tighten.value, Pr.none.value] = 1
     # T[Pr.tighten.value, Pr.screw.value] = 0
-
+    T = np.ones((6,6))
 
     T = np.transpose(T.transpose() / np.sum(T,axis=1))
     return T
@@ -145,12 +145,13 @@ class GMM:
         # computes p(belong to primitive | X) for each X
         # this could possibly be replaced with the particle filter
         plotFlag = t is not None
+        plotFlag = False
         if plotFlag:
             f,ax = plt.subplots(1)
         if T_matrix is not None:
             self.apf_expectation(T_matrix)
         elif T_matrix_standard is not None:
-            self.standard_expectation(T_matrix_standard)
+            self.forward_backward_expectation(T_matrix_standard)
         else:
             self.standard_expectation()
         if plotFlag:
@@ -168,26 +169,10 @@ class GMM:
             for kk, cluster in enumerate(self.clusters):
                 likelihoods[:,kk+1] = cluster['gamma_nk']
             np.savetxt(saveFile, likelihoods)
-    def standard_expectation(self,T_matrix=None):
+    def standard_expectation(self):
         totals = np.zeros(self.X.shape[0], dtype=np.float64)
-        if T_matrix is not None:
-            for kk, cluster in enumerate(self.clusters):
-                self.likelihoods[:,kk] = gaussian(self.X, cluster['mu_k'], cluster['cov_k']).astype(np.float64)
-            likelihoods1 = np.zeros((self.X.shape[0],self.n_clusters))#first index time, second index different clusters
-            # likelihoods1[1:] = self.likelihoods[:-1].dot(T_matrix)
-            # likelihoods1[0,:] = self.likelihoods[0,:]
-            likelihoods1[-1,:] = self.likelihoods[-1,:]
-            for t in range(self.X.shape[0]-1):
-                for s in range(self.n_clusters):
-                    for safter in range(self.n_clusters):
-                        likelihoods1[t,s] += (1
-                            *T_matrix[s,safter]*self.likelihoods[t+1,safter])
-                # likelihoods1[t,:] /= np.sum(likelihoods1[t,:])
         for kk, cluster in enumerate(self.clusters):
-            if T_matrix is not None:
-                gamma_nk = likelihoods1[:,kk]*self.likelihoods[:,kk]
-            else:
-                gamma_nk = (cluster['pi_k'] * gaussian(self.X, cluster['mu_k'], cluster['cov_k'])).astype(np.float64)
+            gamma_nk = (cluster['pi_k'] * gaussian(self.X, cluster['mu_k'], cluster['cov_k'])).astype(np.float64)
             totals += gamma_nk
             cluster['gamma_nk'] = gamma_nk 
         self.totals = totals
@@ -199,6 +184,34 @@ class GMM:
                 else:
                     cluster['gamma_nk'][i] /= totals[i];
             self.likelihoods[:,kk] = cluster['gamma_nk']
+    def forward_backward_expectation(self,T_matrix):
+        N = self.X.shape[0]
+        alpha = np.zeros((self.n_clusters, N))
+        beta = np.zeros((self.n_clusters, N))
+        p_obs = np.zeros((self.n_clusters, N)) + self.offset
+        for k, cluster in enumerate(self.clusters):
+            p_obs[k,:] = gaussian(self.X, cluster['mu_k'], cluster['cov_k']).astype(np.float64)
+            alpha[k,0] = 1.0/self.n_clusters*p_obs[k,0]#gaussian(self.X[0], cluster['mu_k'], cluster['cov_k']).astype(np.float64)
+            beta[k,-1] = 1.0
+        alpha[:,0] = alpha[:,0] / np.sum(alpha[:,0])
+        for t in range(1,N):
+            for k1 in range(self.n_clusters):
+                for k0 in range(self.n_clusters):
+                    alpha[k1, t] += alpha[k0, t-1]*T_matrix[k0, k1]
+                alpha[k1,t] *= p_obs[k1,t]#gaussian(self.X[t+1], cluster1['mu_k'], cluster1['cov_k']).astype(np.float64)
+            alpha[:,t] = alpha[:,t] / np.sum(alpha[:,t])
+        for t in range(N - 2, -1, -1):
+            for k0 in range(self.n_clusters):
+                for k1 in range(self.n_clusters):
+                    beta[k0, t] += beta[k1,t+1] * T_matrix[k0, k1] * p_obs[k1, t+1]#gaussian(self.X[t+1], cluster1['mu_k'], cluster1['cov_k']).astype(np.float64)
+            beta[:,t] = beta[:,t] / np.sum(beta[:,t])
+        self.totals = np.zeros(N)
+        for k, cluster in enumerate(self.clusters):
+            cluster['gamma_nk'] = alpha[k,:]*beta[k,:]
+            self.totals += cluster['gamma_nk']
+        for k, cluster in enumerate(self.clusters):
+            cluster['gamma_nk'] /= self.totals
+        self.offset = max(self.offset*0.5, 0.1)
     def pf_expectation(self,T_forward):
         """ 
         Input:
@@ -407,8 +420,8 @@ if __name__ == "__main__":
         for i in range(len(labels)):#collect different labels and time periods corresponding to this primitive
             if(labels[i] == prim):
                 tpairs.append([tlabels[i],tlabels[i+1]])
-        print("Primitive: {0:s}".format(Pr(prim)))
-        print(tpairs)
+        # print("Primitive: {0:s}".format(Pr(prim)))
+        # print(tpairs)
         time, X = read_data1('../data/medium_cap/raw_medium_cap/run1', '../data/medium_cap/raw_medium_cap/bias.force',output_fmt='array',tpairlist=tpairs)
         #each row of X is an observation
         #each column of X is a variable
@@ -475,7 +488,7 @@ if __name__ == "__main__":
     myGMM = GMM(X[:,subset])
     # myGMM.initialize_clusters(n_primitives, means0=mu0, cov0=cov0)
     transition = initializeTransitionMatrix()
-    if True:
+    if False:
         myGMM.initialize_clusters(n_primitives, means0=mu0, cov0=cov0,
             constraints=myConstraints)
         for i in range(30):
@@ -520,9 +533,11 @@ if __name__ == "__main__":
                 if i == 29:
                     mytestGMM.expectation_step(t=time,prefix="figures/run{0:d}_epoch".format(run_number),saveFile="results/run{0:d}_likelihoods".format(run_number),
                         T_matrix=transition)
+                        # )
                 else:
                     mytestGMM.expectation_step(
                         T_matrix=transition)
+                        # )
                 mytestGMM.maximization_step()
                 print("it: {0:d} likelihood  function {1:e}".format(i, mytestGMM.get_likelihood()))
         except Exception as e:
@@ -535,12 +550,12 @@ if __name__ == "__main__":
     #     1.0/run_number)
     means = np.load('references/meantest.npy')
     covar = np.load('references/covartest.npy')
-    for prim in [Pr.none, Pr.fsm, Pr.align, Pr.engage, Pr.screw, Pr.tighten]:
-        print("Stats: ", prim)
-        for var in ('ang_vel_z', 'M_z'):
-            print("{0:s}: mu: {1:f} stdev ".format(var,means[prim.value][var_idxs[var]]),
-            np.sqrt(covar[prim.value,var_idxs[var],var_idxs[var]])) 
-    os.system('python3 plot_data.py '+str(run_number))
+    # for prim in [Pr.none, Pr.fsm, Pr.align, Pr.engage, Pr.screw, Pr.tighten]:
+    #     print("Stats: ", prim)
+    #     for var in ('ang_vel_z', 'M_z'):
+    #         print("{0:s}: mu: {1:f} stdev ".format(var,means[prim.value][var_idxs[var]]),
+    #         np.sqrt(covar[prim.value,var_idxs[var],var_idxs[var]])) 
+    # os.system('python3 plot_data.py '+str(run_number))
 
 
 

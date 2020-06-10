@@ -2,11 +2,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from scipy.spatial.transform import Rotation as R
-from matplotlib import rc
+from matplotlib import rc, rcParams
 from read_data import read_data0, read_data1
 from classifier import Pr
 import sys
-def plot_file(file,tlabelfile=None,prlabelfile=None):
+def plot_file(file,tlabelfile=None,prlabelfile=None,tlabelfileTruth=None,prlabelfileTruth=None,
+    plot_pos=True,plot_vel=True,plot_ori=True,plot_ang_vel=True,plot_force=True,plot_moment=True):
     #y axis becomes z
     #z axis becomes x
     #x axis becomes y
@@ -36,57 +37,93 @@ def plot_file(file,tlabelfile=None,prlabelfile=None):
     ax.set_ylabel('y')
     ax.set_zlabel('z')
     """
-    f,ax=plt.subplots(7,1,sharex=True,figsize=(8,9))
-    ax[0].plot(t,p1[:,0],'r',label='x')
-    ax[0].plot(t,p1[:,1],'g',label='y')
-    ax[0].plot(t,p1[:,2],'b',label='z')
-    ax[0].set_ylabel('meters')
-    ax[0].legend(loc='upper right')
-    ax[1].plot(t,vels[:,0],'r',label='x')
-    ax[1].plot(t,vels[:,1],'g',label='y')
-    ax[1].plot(t,vels[:,2],'b',label='z')
-    ax[1].set_ylabel('meters/s')
-    ax[1].legend(loc='upper right')
-    ax[2].plot(t,np.pi/180*euler[:,2],'r',label='$\\theta$')
-    ax[2].plot(t,np.pi/180*euler[:,1],'g',label='$\Phi$')
-    ax[2].plot(t,np.pi/180*euler[:,0],'b',label='$\Psi$')
-    ax[2].set_ylabel('radians')
-    ax[2].legend(loc='upper right')
-    ax[3].plot(t,omegas[:,0],'r',label='$\omega_x$')
-    ax[3].plot(t,omegas[:,1],'g',label='$\omega_y$')
-    ax[3].plot(t,omegas[:,2],'b',label='$\omega_z$')
-    ax[3].set_ylabel('rad/s')
-    ax[3].legend(loc='upper right')
-    ax[4].plot(t,F[:,0],'r',label='$f_x$')
-    ax[4].plot(t,F[:,1],'g',label='$f_y$')
-    ax[4].plot(t,F[:,2],'b',label='$f_z$')
-    ax[4].set_ylabel('N')
-    ax[4].legend(loc='upper right')
-    ax[5].plot(t,M[:,0],'r',label='$\\tau_x$')
-    ax[5].plot(t,M[:,1],'g',label='$\\tau_y$')
-    ax[5].plot(t,M[:,2],'b',label='$\\tau_z$')
-    ax[5].set_ylabel('Nm')
-    ax[5].legend(loc='upper right')
+    nPlots = np.sum([int(flag) for flag in [plot_pos, plot_vel, plot_ori, plot_ang_vel, plot_force, plot_moment]])
+    plotTruthLabels=tlabelfileTruth is not None and prlabelfileTruth is not None
+    if plotTruthLabels:
+        nTotalPlots =  nPlots + 2
+    else:
+        nTotalPlots =  nPlots + 1
+    f,ax=plt.subplots(nTotalPlots,1,sharex=True,figsize=(8,9))
+    fig_idx = 0
+    if plot_pos:
+        ax[fig_idx].plot(t,p1[:,0],'r',label='x')
+        ax[fig_idx].plot(t,p1[:,1],'g',label='y')
+        ax[fig_idx].plot(t,p1[:,2],'b',label='z')
+        ax[fig_idx].set_ylabel('meters')
+        ax[fig_idx].legend(loc='upper right')
+        fig_idx += 1
+    if plot_vel:
+        ax[fig_idx].plot(t,vels[:,0],'r',label='x')
+        ax[fig_idx].plot(t,vels[:,1],'g',label='y')
+        ax[fig_idx].plot(t,vels[:,2],'b',label='z')
+        ax[fig_idx].set_ylabel('meters/s')
+        ax[fig_idx].legend(loc='upper right')
+        fig_idx += 1
+    if plot_ori:
+        ax[fig_idx].plot(t,np.pi/180*euler[:,2],'r',label='$\\theta$')
+        ax[fig_idx].plot(t,np.pi/180*euler[:,1],'g',label='$\Phi$')
+        ax[fig_idx].plot(t,np.pi/180*euler[:,0],'b',label='$\Psi$')
+        ax[fig_idx].set_ylabel('radians')
+        ax[fig_idx].legend(loc='upper right')
+        fig_idx += 1
+    if plot_ang_vel:
+        ax[fig_idx].plot(t,omegas[:,0],'r',label='$\omega_x$')
+        ax[fig_idx].plot(t,omegas[:,1],'g',label='$\omega_y$')
+        ax[fig_idx].plot(t,omegas[:,2],'b',label='$\omega_z$')
+        ax[fig_idx].set_ylabel('rad/s')
+        ax[fig_idx].legend(loc='upper right')
+        fig_idx += 1
+    if plot_force:
+        ax[fig_idx].plot(t,F[:,0],'r',label='$f_x$')
+        ax[fig_idx].plot(t,F[:,1],'g',label='$f_y$')
+        ax[fig_idx].plot(t,F[:,2],'b',label='$f_z$')
+        ax[fig_idx].set_ylabel('N')
+        ax[fig_idx].legend(loc='upper right')
+        fig_idx += 1
+    if plot_moment:
+        ax[fig_idx].plot(t,M[:,0],'r',label='$\\tau_x$')
+        ax[fig_idx].plot(t,M[:,1],'g',label='$\\tau_y$')
+        ax[fig_idx].plot(t,M[:,2],'b',label='$\\tau_z$')
+        ax[fig_idx].set_ylabel('Nm')
+        ax[fig_idx].legend(loc='upper right')
     plotLabels=tlabelfile is not None and prlabelfile is not None
     if plotLabels:
         vlines = np.genfromtxt(tlabelfile,dtype=float)
         vlines = np.insert(vlines,0,0.0)
         labels=[Pr(int(idx)) for idx in np.genfromtxt(prlabelfile)]
-        for i in range(7):
+        for i in range(nPlots + 1):
             for vline in vlines[1:]:
                 ax[i].axvline(x=vline,color='k',linestyle=':')
         y = 0.5
         xcords = 0.5*(vlines[1:] + vlines[:-1])
         for i in range(len(xcords)):
-            ax[6].text(xcords[i],y,labels[i],horizontalalignment='center',rotation=90, verticalalignment='center')
-        ax[6].set_xlabel('time')
-        ax[6].get_yaxis().set_ticks([])
+            ax[nPlots].text(xcords[i],y,str(labels[i])[3:],horizontalalignment='center',rotation=90, verticalalignment='center',size='x-large')
+        if not plotTruthLabels:
+            ax[nPlots].set_xlabel('time')
+        ax[nPlots].get_yaxis().set_ticks([])
+        ax[nPlots].set_facecolor('#e6b8afff')
         labels=('A','B','C','D','E','F')
-        for i in range(6):
+        for i in range(nPlots):
             secaxy = ax[i].twinx()
             secaxy.set_ylabel(labels[i],rotation=0,labelpad=10)
             secaxy.get_yaxis().set_ticks([])
-        f.align_ylabels(ax)
+        f.align_ylabels(ax[:nPlots])
+    if plotTruthLabels:
+        vlines = np.genfromtxt(tlabelfileTruth,dtype=float)
+        vlines = np.insert(vlines,0,0.0)
+        labels=[Pr(int(idx)) for idx in np.genfromtxt(prlabelfileTruth)]
+        for vline in vlines[1:]:
+            ax[nPlots + 1].axvline(x=vline,color='k',linestyle=':')
+        y = 0.5
+        xcords = 0.5*(vlines[1:] + vlines[:-1])
+        for i in range(len(xcords)):
+            ax[nPlots + 1].text(xcords[i],y,str(labels[i])[3:],horizontalalignment='center',rotation=90, verticalalignment='center',size='x-large')
+        ax[nPlots + 1].set_xlabel('time')
+        ax[nPlots + 1].get_yaxis().set_ticks([])
+        ax[nPlots].set_ylabel('Auto \n Labelled',rotation=90,labelpad=4)
+        ax[nPlots + 1].set_ylabel('Manually \n Labelled',rotation=90,labelpad=4)
+    # ax[0].set_title('Demonstration \#2: Primitive Labelling Success Rate: 93\%')
+
 def getlabels(likelihoodfile, tlabelFile = None, prlabelFile = None):
     """
     Inputs:
@@ -115,7 +152,7 @@ def getlabels(likelihoodfile, tlabelFile = None, prlabelFile = None):
     np.savetxt(tlabelFile,tlist)
     np.savetxt(prlabelFile,prlist)
     return tlist, prlist, prs
-def compute_success_rate(likelihoodfile, tlabelFile_groundTruth, prlabelFile_groundTruth):
+def compute_success_rate(likelihoodfile, tlabelFile_groundTruth, prlabelFile_groundTruth, failureFile):
     dat = np.genfromtxt(likelihoodfile)
     t = dat[:,0]
     likelihoods = dat[:,1:]
@@ -123,14 +160,20 @@ def compute_success_rate(likelihoodfile, tlabelFile_groundTruth, prlabelFile_gro
     successes = 0.0
     tlabels=np.genfromtxt(tlabelFile_groundTruth)
     prlabels=np.genfromtxt(prlabelFile_groundTruth)
-    pr0 = prlabels[0]
+    pr0 = int(prlabels[0])
     pr1 = -1
     margin = 0.05
     pr_idx = 0
     count = 0
+    pr_actual = int(prlabels[0])
+    pr_idx_actual = 0
+    failure_count = np.genfromtxt(failureFile,dtype=int)
     for i, t_i in enumerate(t):
         if t_i > tlabels[-1]:
             break
+        if t_i > tlabels[pr_idx_actual]:
+            pr_actual = int(prlabels[pr_idx_actual + 1])
+            pr_idx_actual += 1
         if pr1 < 0 and t_i + margin > tlabels[pr_idx]:
             if pr_idx < len(tlabels) - 1:
                 pr1 = int(prlabels[pr_idx + 1])
@@ -138,10 +181,28 @@ def compute_success_rate(likelihoodfile, tlabelFile_groundTruth, prlabelFile_gro
             pr0 = pr1
             pr1 = -1
             pr_idx = pr_idx + 1
-        successes += int(prs[i] == pr0 or prs[i] == pr1)
+        success = (prs[i] == pr0 or prs[i] == pr1)
+        failure_count[pr_actual,prs[i]] += 1
+        successes += int(success)
         count += 1
+    np.savetxt(failureFile,failure_count,fmt="%i")
     return successes / count
-
+def write_Pr_file(t,X, tlabelFile_groundTruth, prlabelFile_groundTruth):
+    prs = np.zeros(len(t))
+    tlabels=np.genfromtxt(tlabelFile_groundTruth)
+    prlabels=np.genfromtxt(prlabelFile_groundTruth)
+    current_pr = prlabels[0]
+    pr_idx = 0
+    N = len(t)
+    for i, t_i in enumerate(t):
+        if t_i > tlabels[-1]:
+            N = i
+            break
+        if t_i > tlabels[pr_idx]:
+            current_pr = int(prlabels[pr_idx + 1])
+            pr_idx += 1
+        prs[i] = current_pr
+    return np.hstack((np.reshape(t[:N],(N,1)), X[:N], np.reshape(prs[:N],(N,1))))
 
 if __name__ == "__main__":
     run_number=int(sys.argv[1])
@@ -153,17 +214,32 @@ if __name__ == "__main__":
     # plot_file('../data/medium_cap/raw_medium_cap/run{0:d}'.format(run_number))
     # plot_file('../data/medium_cap/raw_medium_cap/run{0:d}'.format(run_number),tlabelfile="../data/medium_cap/raw_medium_cap/run{0:d}_tlabels".format(run_number),prlabelfile="../data/medium_cap/raw_medium_cap/run{0:d}_prmlabels".format(run_number))
     
-    #---saving data files for training----
+    #---make labels for graphing etc.---
     dummya, dummyb, prs = getlabels("results/run{0:d}_likelihoods".format(run_number), tlabelFile="results/run{0:d}_tlabels".format(run_number), prlabelFile="results/run{0:d}_prmlabels".format(run_number))
+    #---save data for training --------
     # time, X = read_data1('../data/medium_cap/raw_medium_cap/run' + str(run_number), '../data/medium_cap/raw_medium_cap/bias.force',output_fmt='array')
-    # N = len(time)
+    # N = len(prs)
     # headerstr = "time pos_x pos_y pos_z ori_x ori_y ori_z vel_x vel_y vel_z angvel_x angvel_y angvel_z Fx Fy Fz Mx My Mz Pr"
-    # np.savetxt("../data/medium_cap/raw_medium_cap/run{0:d}_labelled".format(run_number),np.hstack((np.reshape(time,(N,1)), X, np.reshape(prs,(N,1)))),header=headerstr)
-
-    success_rate = compute_success_rate("results/run{0:d}_likelihoods".format(run_number), "../data/medium_cap/raw_medium_cap/run{0:d}_tlabels".format(run_number),"../data/medium_cap/raw_medium_cap/run{0:d}_prmlabels".format(run_number))
+    # # np.savetxt("../data/medium_cap/auto_labelled/run{0:d}_labelled".format(run_number),np.hstack((np.reshape(time[:N],(N,1)), X[:N], np.reshape(prs,(N,1)))),header=headerstr)
+    # np.savetxt("../data/medium_cap/manually_labelled/run{0:d}_labelled".format(run_number),
+    #     write_Pr_file(time,X,"../data/medium_cap/raw_medium_cap/run{0:d}_tlabels".format(run_number),"../data/medium_cap/raw_medium_cap/run{0:d}_prmlabels".format(run_number)),
+    #     header=headerstr)
+    #---success rate----
+    success_rate = compute_success_rate("results/run{0:d}_likelihoods".format(run_number), "../data/medium_cap/raw_medium_cap/run{0:d}_tlabels".format(run_number),"../data/medium_cap/raw_medium_cap/run{0:d}_prmlabels".format(run_number),"failcount.dat")
     print("success_rate: {0:f}".format(success_rate))
     #---plotting
+    # rc('text',usetex=True)
+    # rcParams['axes.titlesize'] = 'x-large'
+    # rcParams['axes.labelsize'] = 'large'
+    # rcParams['xtick.labelsize'] = 'x-large'
+    # rcParams['ytick.labelsize'] = 'x-large'
+
     # plot_file('../data/medium_cap/raw_medium_cap/run{0:d}'.format(run_number),tlabelfile="results/run{0:d}_tlabels".format(run_number),prlabelfile="results/run{0:d}_prmlabels".format(run_number))
+    # plot_file('../data/medium_cap/raw_medium_cap/run{0:d}'.format(run_number),
+    #     tlabelfile="results/run{0:d}_tlabels".format(run_number),prlabelfile="results/run{0:d}_prmlabels".format(run_number),
+    #     tlabelfileTruth="../data/medium_cap/raw_medium_cap/run{0:d}_tlabels".format(run_number),prlabelfileTruth="../data/medium_cap/raw_medium_cap/run{0:d}_prmlabels".format(run_number)
+    #     ,plot_pos=True,plot_ori=True, plot_vel=True,plot_force=True
+    #     )
     # plot_file('../data/medium_cap/raw_medium_cap/run1'.format(run_number),tlabelfile="../data/medium_cap/raw_medium_cap/run1_tlabels".format(run_number),prlabelfile="../data/medium_cap/raw_medium_cap/run1_prmlabels".format(run_number))
-    # plt.savefig("results/labelled_run{0:d}.png".format(run_number),dpi=600)
+    # plt.savefig("results/labelled_run{0:d}.png".format(run_number),dpi=600, bbox_inches = 'tight',pad_inches = 0)
     # plt.show()
