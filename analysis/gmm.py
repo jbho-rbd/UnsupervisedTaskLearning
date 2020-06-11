@@ -27,7 +27,7 @@ from sklearn import datasets
 from sklearn.cluster import KMeans
 
 from read_data import read_data0, read_data1
-from plot_data import compute_success_rate, getlabels
+from plot_data import compute_success_rate, getlabels, plot_file
 
 """ --------------------------------------------------------------------------------------
    Global Constants
@@ -792,5 +792,28 @@ if __name__ == "__main__":
         transitionFileName = "transitions/T_{0:d}".format(tnum)
         np.savetxt(transitionFileName, updatedTransition)   
 
+    """
+    FIGURES
+        -- likelihood plots are created and saved inside 
+           the expectation_step called by train and test
+    """
+    # Plot sensor data of labelled run 
+    #   - for initial and final transition matrix
+    #   - for run2 (really good) and run12 (sucks)
+    #   - 4 subplots 
+    plot_file('../data/medium_cap/raw_medium_cap/run2',
+        tlabelfile="results/run2_tlabels_T0",
+        prlabelfile="results/run{0:d}_prmlabels".format(run_number))
+    plt.savefig("figures/labelled_run{0:d}.png".format(run_number),dpi=600)
+    plt.show()
 
+    # Plot success_rate vs. #Tmatrix_updates 
+    #   - legend: average success rate, success run2, success run12
+
+
+    # Plot Transition Matrix values convergence 
+    #   - subplot 1) 2norm of the difference between successive Ts
+    #   - subplot 2) Diagonal values (legend with 6 numbers)
+
+    # Plot confusion matrix 
 
