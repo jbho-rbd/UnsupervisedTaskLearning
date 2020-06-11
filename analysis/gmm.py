@@ -332,7 +332,7 @@ class GMM:
         if T_matrix_APF is not None:
             self.apf_expectation(T_matrix_APF)  #the option that worked best
         elif T_matrix_standard is not None:
-            self.standard_expectation(T_matrix_standard)
+            self.forward_backward_expectation(T_matrix_standard)
         else:
             self.standard_expectation()
         if plotFlag:
@@ -351,24 +351,10 @@ class GMM:
             for kk, cluster in enumerate(self.clusters):
                 likelihoods[:,kk+1] = cluster['gamma_nk']
             np.savetxt(saveFile, likelihoods)
-
-    def standard_expectation(self,T_matrix=None):
+    def standard_expectation(self):
         totals = np.zeros(self.X.shape[0], dtype=np.float64)
-        if T_matrix is not None:
-            for kk, cluster in enumerate(self.clusters):
-                self.likelihoods[:,kk] = gaussian(self.X, cluster['mu_k'], cluster['cov_k']).astype(np.float64)
-            likelihoods1 = np.zeros((self.X.shape[0],self.n_clusters))#first index time, second index different clusters
-            likelihoods1[-1,:] = self.likelihoods[-1,:]
-            for t in range(self.X.shape[0]-1):
-                for s in range(self.n_clusters):
-                    for safter in range(self.n_clusters):
-                        likelihoods1[t,s] += (1
-                            *T_matrix[s,safter]*self.likelihoods[t+1,safter])
         for kk, cluster in enumerate(self.clusters):
-            if T_matrix is not None:
-                gamma_nk = likelihoods1[:,kk]*self.likelihoods[:,kk]
-            else:
-                gamma_nk = (cluster['pi_k'] * gaussian(self.X, cluster['mu_k'], cluster['cov_k'])).astype(np.float64)
+            gamma_nk = (cluster['pi_k'] * gaussian(self.X, cluster['mu_k'], cluster['cov_k'])).astype(np.float64)
             totals += gamma_nk
             cluster['gamma_nk'] = gamma_nk 
         self.totals = totals
@@ -380,7 +366,34 @@ class GMM:
                 else:
                     cluster['gamma_nk'][i] /= totals[i];
             self.likelihoods[:,kk] = cluster['gamma_nk']
-
+    def forward_backward_expectation(self,T_matrix):
+        N = self.X.shape[0]
+        alpha = np.zeros((self.n_clusters, N))
+        beta = np.zeros((self.n_clusters, N))
+        p_obs = np.zeros((self.n_clusters, N)) + self.offset
+        for k, cluster in enumerate(self.clusters):
+            p_obs[k,:] = gaussian(self.X, cluster['mu_k'], cluster['cov_k']).astype(np.float64)
+            alpha[k,0] = 1.0/self.n_clusters*p_obs[k,0]#gaussian(self.X[0], cluster['mu_k'], cluster['cov_k']).astype(np.float64)
+            beta[k,-1] = 1.0
+        alpha[:,0] = alpha[:,0] / np.sum(alpha[:,0])
+        for t in range(1,N):
+            for k1 in range(self.n_clusters):
+                for k0 in range(self.n_clusters):
+                    alpha[k1, t] += alpha[k0, t-1]*T_matrix[k0, k1]
+                alpha[k1,t] *= p_obs[k1,t]#gaussian(self.X[t+1], cluster1['mu_k'], cluster1['cov_k']).astype(np.float64)
+            alpha[:,t] = alpha[:,t] / np.sum(alpha[:,t])
+        for t in range(N - 2, -1, -1):
+            for k0 in range(self.n_clusters):
+                for k1 in range(self.n_clusters):
+                    beta[k0, t] += beta[k1,t+1] * T_matrix[k0, k1] * p_obs[k1, t+1]#gaussian(self.X[t+1], cluster1['mu_k'], cluster1['cov_k']).astype(np.float64)
+            beta[:,t] = beta[:,t] / np.sum(beta[:,t])
+        self.totals = np.zeros(N)
+        for k, cluster in enumerate(self.clusters):
+            cluster['gamma_nk'] = alpha[k,:]*beta[k,:]
+            self.totals += cluster['gamma_nk']
+        for k, cluster in enumerate(self.clusters):
+            cluster['gamma_nk'] /= self.totals
+        self.offset = max(self.offset*0.5, 0.1)
     def pf_expectation(self,T_forward):
         """ 
         Input:
