@@ -32,7 +32,7 @@ from plot_data import compute_success_rate, getlabels, plot_file
 """ --------------------------------------------------------------------------------------
    Global Constants
 -----------------------------------------------------------------------------------------"""
-NUM_RUNS = 3
+NUM_RUNS = 3 #20 #it will run the gmm for this number-1
 n_primitives = 6  
 numIterTrain = 2
 numIterTest = 2 
@@ -810,23 +810,73 @@ if __name__ == "__main__":
         -- likelihood plots are created and saved inside 
            the expectation_step called by train and test
     """
+    
     # Plot sensor data of labelled run 
     #   - for initial and final transition matrix
     #   - for run2 (really good) and run12 (sucks)
-    #   - 4 subplots 
-    plot_file('../data/medium_cap/raw_medium_cap/run2',
-        tlabelfile="results/run2_tlabels_T0",
-        prlabelfile="results/run{0:d}_prmlabels".format(run_number))
-    plt.savefig("figures/labelled_run{0:d}.png".format(run_number),dpi=600)
-    plt.show()
+    #   - 4 subplots     
+    lastT = numTMatrixUpdates - 1
+    run2plot = [1, 2]
+    trans2plot = [0,lastT]
 
+    for i in range(2): 
+        for t in range(2):
+            plot_file('../data/medium_cap/raw_medium_cap/run{0:d}'.format(run2plot[i]),
+                tlabelfile="results/run{0:d}_tlabels_T{1:d}".format(run2plot[i],trans2plot[t]),
+                prlabelfile="results/run{0:d}_prmlabels_T{1:d}".format(run2plot[i],trans2plot[t]),
+                tlabelfileTruth='../data/medium_cap/raw_medium_cap/run{0:d}_tlabels'.format(run2plot[i]),
+                prlabelfileTruth='../data/medium_cap/raw_medium_cap/run{0:d}_prmlabels'.format(run2plot[i])
+                )
+            plt.savefig("figures/labelled_run{0:d}_T{1:d}.png".format(run2plot[i],trans2plot[t]),dpi=600)
+            plt.show()
+
+    
     # Plot success_rate vs. #Tmatrix_updates 
     #   - legend: average success rate, success run2, success run12
+    success_a = np.genfromtxt("results/run{0:d}_successRates".format(run2plot[0]),skip_header=1)
+    success_a = success_a[:,1]
+    success_b = np.genfromtxt("results/run{0:d}_successRates".format(run2plot[1]),skip_header=1)
+    success_b = success_b[:,1]
+    Tupdate = np.arange(0,numTMatrixUpdates,1)
 
+    success_sum = np.zeros(numTMatrixUpdates)
+    success_sum_prev = np.zeros(numTMatrixUpdates)
+    print(success_sum)
+    for i in range(1,NUM_RUNS):
+        success = np.genfromtxt("results/run{0:d}_successRates".format(i),skip_header=1)
+        success = success[:,1]
+    #     print("run_i"+ str(success))
+        success_sum = success_sum + success
+    # print(success_sum)
+    success_avg = success_sum/(NUM_RUNS-1)
+    # print("avg"+ str(success_avg)) 
+
+    plt.plot(Tupdate, success_a, label = 'run{0:d}'.format(run2plot[0]))
+    plt.plot(Tupdate, success_b, label = 'run{0:d}'.format(run2plot[1]))
+    plt.plot(Tupdate, success_avg, label = 'avg')
+    plt.ylabel('success')
+    plt.xlabel('update number')
+    plt.title('Success vs. T_matrix Updates')
+    plt.legend()
+    plt.savefig('figures/success_vs_T.png', dpi=600)
+    plt.show()
+    plt.close()
 
     # Plot Transition Matrix values convergence 
     #   - subplot 1) 2norm of the difference between successive Ts
     #   - subplot 2) Diagonal values (legend with 6 numbers)
+    # plt.subplot(211)
+    # plt.plot(time[::4], true_x[::4,0], label = 'true px')
+    # plt.plot(time[::4], means_KF[::4,0], label = 'EKF mu')
+    # plt.ylabel('px ')
+    # plt.title('HW6-Q1A: EKF (measure -> distance to feature)')
+    # plt.legend()
+
+    # plt.subplot(212)
+    # plt.plot(time[::4], true_x[::4,1], label = 'true py')
+    # plt.plot(time[::4], means_KF[::4,1], label = 'EKF mu')
+    # plt.ylabel('py')
+    # plt.legend()
 
     # Plot confusion matrix 
 
