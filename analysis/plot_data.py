@@ -152,7 +152,7 @@ def getlabels(likelihoodfile, tlabelFile = None, prlabelFile = None):
     np.savetxt(tlabelFile,tlist)
     np.savetxt(prlabelFile,prlist)
 
-def compute_success_rate(likelihoodfile, tlabelFile_groundTruth, prlabelFile_groundTruth, failureFile):
+def compute_success_rate(likelihoodfile, tlabelFile_groundTruth, prlabelFile_groundTruth, failureFile = None):
     dat = np.genfromtxt(likelihoodfile)
     t = dat[:,0]
     likelihoods = dat[:,1:]
@@ -167,7 +167,9 @@ def compute_success_rate(likelihoodfile, tlabelFile_groundTruth, prlabelFile_gro
     count = 0
     pr_actual = int(prlabels[0])
     pr_idx_actual = 0
-    failure_count = np.genfromtxt(failureFile,dtype=int)
+    countFailures = failureFile is not None
+    if countFailures:
+        failure_count = np.genfromtxt(failureFile,dtype=int)
     for i, t_i in enumerate(t):
         if t_i > tlabels[-1]:
             break
@@ -182,10 +184,12 @@ def compute_success_rate(likelihoodfile, tlabelFile_groundTruth, prlabelFile_gro
             pr1 = -1
             pr_idx = pr_idx + 1
         success = (prs[i] == pr0 or prs[i] == pr1)
-        failure_count[pr_actual,prs[i]] += 1
+        if countFailures:
+            failure_count[pr_actual,prs[i]] += 1
         successes += int(success)
         count += 1
-    np.savetxt(failureFile,failure_count,fmt="%i")
+    if countFailures:
+        np.savetxt(failureFile,failure_count,fmt="%i")
     return successes / count
     
 def write_Pr_file(t,X, tlabelFile_groundTruth, prlabelFile_groundTruth):

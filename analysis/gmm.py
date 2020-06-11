@@ -623,7 +623,7 @@ class GMM:
         getlabels(likelihoods_fileName, tlabelFile=tlabels_fileName, prlabelFile=prmlabels_fileName)
         
         # Compute. save and plot success rate
-        success_rate = compute_success_rate(likelihoods_fileName, manual_tlabels, manual_prmlabels, failureFile)
+        success_rate = compute_success_rate(likelihoods_fileName, manual_tlabels, manual_prmlabels)
         saveSuccessRateFile(success_fileName, success_rate, currentNumTupdates)
         print("-------> training success_rate run1: {0:f}".format(success_rate))
     
@@ -682,7 +682,7 @@ class GMM:
         getlabels(likelihoods_fileName, tlabelFile=tlabels_fileName, prlabelFile=prmlabels_fileName)
         
         # Compute, save and plot success rate
-        success_rate = compute_success_rate(likelihoods_fileName, manual_tlabels, manual_prmlabels, failureFile)
+        success_rate = compute_success_rate(likelihoods_fileName, manual_tlabels, manual_prmlabels)
         saveSuccessRateFile(success_fileName, success_rate, currentNumTupdates)
         print("-------> testing success_rate run{0:d}: {1:f}".format(run_number, success_rate))
  
