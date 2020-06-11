@@ -27,7 +27,7 @@ from sklearn import datasets
 from sklearn.cluster import KMeans
 
 from read_data import read_data0, read_data1
-from plot_data import compute_success_rate, getlabels, plot_file
+from plot_data import getlabels, plot_file , compute_success_rate
 
 """ --------------------------------------------------------------------------------------
    Global Constants
@@ -227,7 +227,8 @@ def createFileNames(run_number, currentNumTupdates):
     manual_tlabels = "../data/medium_cap/raw_medium_cap/run{0:d}_tlabels".format(run_number)
     manual_prmlabels = "../data/medium_cap/raw_medium_cap/run{0:d}_prmlabels".format(run_number)
     success_fileName = "results/run{0:d}_successRates".format(run_number)
-    return likelihoods_fileName, tlabels_fileName, prmlabels_fileName, manual_tlabels, manual_prmlabels, success_fileName
+    failureFile = "results/run{0:d}_failures_T{1:d}".format(run_number, currentNumTupdates)
+    return likelihoods_fileName, tlabels_fileName, prmlabels_fileName, manual_tlabels, manual_prmlabels, success_fileName, failureFile
 
 def createSuccessRateFile(run_number, currentNumTupdates):
     """
@@ -593,7 +594,7 @@ class GMM:
             Training
         ------------------------"""  
         # Init  
-        likelihoods_fileName, tlabels_fileName, prmlabels_fileName, manual_tlabels, manual_prmlabels, success_fileName = createFileNames(1,currentNumTupdates)  
+        likelihoods_fileName, tlabels_fileName, prmlabels_fileName, manual_tlabels, manual_prmlabels, success_fileName, failureFile = createFileNames(1,currentNumTupdates)  
         self.initialize_clusters(n_primitives, means0=mu0, cov0=cov0, constraints=myConstraints)
 
         # Train by running gmm for "run1" of the demonstration data    
@@ -622,7 +623,7 @@ class GMM:
         getlabels(likelihoods_fileName, tlabelFile=tlabels_fileName, prlabelFile=prmlabels_fileName)
         
         # Compute. save and plot success rate
-        success_rate = compute_success_rate(likelihoods_fileName, manual_tlabels, manual_prmlabels)
+        success_rate = compute_success_rate(likelihoods_fileName, manual_tlabels, manual_prmlabels, failureFile)
         saveSuccessRateFile(success_fileName, success_rate, currentNumTupdates)
         print("-------> training success_rate run1: {0:f}".format(success_rate))
     
@@ -640,7 +641,7 @@ class GMM:
         """
         offset = 0.01
         success = False
-        likelihoods_fileName, tlabels_fileName, prmlabels_fileName, manual_tlabels, manual_prmlabels, success_fileName = createFileNames(run_number,currentNumTupdates)
+        likelihoods_fileName, tlabels_fileName, prmlabels_fileName, manual_tlabels, manual_prmlabels, success_fileName, failureFile = createFileNames(run_number,currentNumTupdates)
 
         # Testing
         print("-------> testing on: ",testfile, "-----------")
@@ -681,7 +682,7 @@ class GMM:
         getlabels(likelihoods_fileName, tlabelFile=tlabels_fileName, prlabelFile=prmlabels_fileName)
         
         # Compute, save and plot success rate
-        success_rate = compute_success_rate(likelihoods_fileName, manual_tlabels, manual_prmlabels)
+        success_rate = compute_success_rate(likelihoods_fileName, manual_tlabels, manual_prmlabels, failureFile)
         saveSuccessRateFile(success_fileName, success_rate, currentNumTupdates)
         print("-------> testing success_rate run{0:d}: {1:f}".format(run_number, success_rate))
  
@@ -810,11 +811,12 @@ if __name__ == "__main__":
         -- likelihood plots are created and saved inside 
            the expectation_step called by train and test
     """
-    
+    print(">>>>>>>> PLOTS >>>>>>>>")
+    # ----------------------------------
     # Plot sensor data of labelled run 
     #   - for initial and final transition matrix
     #   - for run2 (really good) and run12 (sucks)
-    #   - 4 subplots     
+    #   - 4 plots     
     lastT = numTMatrixUpdates - 1
     run2plot = [1, 2]
     trans2plot = [0,lastT]
@@ -831,6 +833,7 @@ if __name__ == "__main__":
             plt.show()
 
     
+    # ----------------------------------
     # Plot success_rate vs. #Tmatrix_updates 
     #   - legend: average success rate, success run2, success run12
     success_a = np.genfromtxt("results/run{0:d}_successRates".format(run2plot[0]),skip_header=1)
@@ -862,6 +865,7 @@ if __name__ == "__main__":
     plt.show()
     plt.close()
 
+    # ----------------------------------
     # Plot Transition Matrix values convergence 
     #   - subplot 1) 2norm of the difference between successive Ts
     #   - subplot 2) Diagonal values (legend with 6 numbers)
@@ -878,5 +882,6 @@ if __name__ == "__main__":
     # plt.ylabel('py')
     # plt.legend()
 
+    # ----------------------------------
     # Plot confusion matrix 
 
