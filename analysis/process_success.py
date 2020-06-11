@@ -1,10 +1,16 @@
+"""
+Make box plot to visualize labelling success for each primitive
+Same purpose as the confusion matrix
+"""
+
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import rc
 import sys
+
 # medianprops = dict(linestyle='-', linewidth=3.0)#, color='firebrick')
 rc('text',usetex=True)
-dat =np.genfromtxt(sys.argv[1])
+dat = np.genfromtxt(sys.argv[1])
 print(dat)
 # plt.boxplot(dat,vert=False,patch_artist=True,medianprops=medianprops)
 # plt.boxplot(dat,vert=False)

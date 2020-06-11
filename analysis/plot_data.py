@@ -187,6 +187,7 @@ def compute_success_rate(likelihoodfile, tlabelFile_groundTruth, prlabelFile_gro
         count += 1
     np.savetxt(failureFile,failure_count,fmt="%i")
     return successes / count
+    
 def write_Pr_file(t,X, tlabelFile_groundTruth, prlabelFile_groundTruth):
     prs = np.zeros(len(t))
     tlabels=np.genfromtxt(tlabelFile_groundTruth)

@@ -1,7 +1,12 @@
+"""
+Plots an error bar representing the labelling success distribution 
+across runs 
+"""
 import matplotlib.pyplot as plt
 import numpy as np
 from classifier import Pr
 from matplotlib import rc, rcParams
+
 rc('text',usetex=True)
 rcParams['axes.titlesize'] = 'x-large'
 rcParams['axes.labelsize'] = 'large'
@@ -13,6 +18,7 @@ N = faildat.shape[0]
 ind = range(N)
 width=0.85
 base = np.zeros(N)
+
 plt.figure(figsize=(3,5.3))
 for i in ind:
 	plt.bar(ind,faildat[:,i],width,bottom=base,label=str(Pr(i))[3:])
