@@ -878,20 +878,46 @@ if __name__ == "__main__":
 
     # ----------------------------------
     # Plot Transition Matrix values convergence 
-    #   - subplot 1) 2norm of the difference between successive Ts
-    #   - subplot 2) Diagonal values (legend with 6 numbers)
-    # plt.subplot(211)
-    # plt.plot(time[::4], true_x[::4,0], label = 'true px')
-    # plt.plot(time[::4], means_KF[::4,0], label = 'EKF mu')
-    # plt.ylabel('px ')
-    # plt.title('HW6-Q1A: EKF (measure -> distance to feature)')
-    # plt.legend()
 
-    # plt.subplot(212)
-    # plt.plot(time[::4], true_x[::4,1], label = 'true py')
-    # plt.plot(time[::4], means_KF[::4,1], label = 'EKF mu')
-    # plt.ylabel('py')
-    # plt.legend()
+    #   ------ 1) Diagonal values (legend with 6 numbers)
+    plt.subplot(211)
+    # Tdiag: each row has the 6 diagonal elements of one T matrix
+    # each column is the evolution of an element through the iterations
+    Tdiag = np.zeros((numTMatrixUpdates, n_primitives)) 
+    for i in range(numTMatrixUpdates):
+        T = np.genfromtxt("transitions/T_{0:d}".format(i))
+        Tdiag[i,:] = T.diagonal() # the 6 diagonal elements   
+    Tupdate = np.arange(0,numTMatrixUpdates,1)
+
+    for i in range(n_primitives):
+        plt.plot(Tupdate, Tdiag[:,i], label = 'T[{0:d},{1:d}]'.format(i+1,i+1))
+    ax1 = plt.gca()
+    ax1.xaxis.set_major_locator(MaxNLocator(integer=True))
+    # plt.xlabel('update number')
+    plt.ylabel('diagonal values')
+    ax1.title.set_text('T Matrix Convergence: Diagonal Elements')
+    # plt.savefig('figures/T_diag_convergence.png', dpi=600)
+    plt.legend(loc=3, prop={'size': 6})
+
+    #  ------ 2) 2norm of the difference between successive Ts
+    plt.subplot(212)
+    # Tdiff: frobenious norm of the difference between consecutive Ts
+    Tdiff = np.zeros(numTMatrixUpdates-1) 
+    for i in range(numTMatrixUpdates-1):
+        T = np.genfromtxt("transitions/T_{0:d}".format(i))
+        Tnext = np.genfromtxt("transitions/T_{0:d}".format(i+1))
+        Tdiff[i] = np.sqrt((np.linalg.norm(T-Tnext, 'fro')/36))
+    Tupdate = np.arange(1,numTMatrixUpdates,1)
+    plt.plot(Tupdate, Tdiff)
+    ax2 = plt.gca()
+    ax2.xaxis.set_major_locator(MaxNLocator(integer=True))
+    plt.xlabel('update number')
+    plt.ylabel('change in T values')
+    ax2.title.set_text('T Matrix Convergence: $||T_{i+1} - T_i||_{FRO}$')
+    plt.tight_layout()
+    plt.savefig('figures/T_convergence.png', dpi=600)
+    plt.show()
+    plt.close()
 
     # ----------------------------------
     # Plot confusion matrix 
