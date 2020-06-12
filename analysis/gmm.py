@@ -41,7 +41,6 @@ numIterTrain = 20
 numIterTest = 20
 numTMatrixUpdates = 10
 
-
 """ --------------------------------------------------------------------------------------
    Utility Functions
 ----------------------------------------------------------------------------------------"""
@@ -345,7 +344,7 @@ class GMM:
                 ax.plot(t,cluster['gamma_nk'],label=Pr(kk))
         if plotFlag:
             ax.legend()
-            ax.set_title("Primitive Probabilities Run{0:d} (after {0:1} epochs)".format(run_number, self.epoch))
+            ax.set_title("Primitive Probabilities Run{0:d}".format(run_number))
             plt.savefig(saveFigure, dpi=600)
             plt.close()
             # plt.show()
@@ -373,6 +372,7 @@ class GMM:
                 else:
                     cluster['gamma_nk'][i] /= totals[i];
             self.likelihoods[:,kk] = cluster['gamma_nk']
+
     def forward_backward_expectation(self,T_matrix):
         N = self.X.shape[0]
         alpha = np.zeros((self.n_clusters, N))
