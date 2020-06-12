@@ -26,21 +26,25 @@ from PIL import Image
 from sklearn import datasets
 from sklearn.cluster import KMeans
 
+from matplotlib.pyplot import figure, show
+from matplotlib.ticker import MaxNLocator
+
 from read_data import read_data0, read_data1
 from plot_data import getlabels, plot_file , compute_success_rate
 
 """ --------------------------------------------------------------------------------------
    Global Constants
 -----------------------------------------------------------------------------------------"""
-NUM_RUNS = 3 #20 #it will run the gmm for this number-1
+NUM_RUNS = 20 #20 #it will run the gmm for this number-1
 n_primitives = 6  
-numIterTrain = 2
-numIterTest = 2 
-numTMatrixUpdates = 3
+numIterTrain = 20
+numIterTest = 20
+numTMatrixUpdates = 10
+
 
 """ --------------------------------------------------------------------------------------
    Utility Functions
------------------------------------------------------------------------------------------"""
+----------------------------------------------------------------------------------------"""
 class Pr(enum.Enum): 
     """ 
         Enum associating each primitive with an integer 
@@ -321,7 +325,7 @@ class GMM:
         for cluster in self.clusters:
             cluster['cov_k'] = factor*cluster['cov_k']
 
-    def expectation_step(self,t=None, saveFigure = None, saveFile=None,T_matrix_APF=None, T_matrix_standard=None):
+    def expectation_step(self,run_number, t=None, saveFigure = None, saveFile=None,T_matrix_APF=None, T_matrix_standard=None):
         """
             Output: computes p(belong to primitive | X) for each X
             It saves these likelihoods to a .txt
@@ -341,8 +345,9 @@ class GMM:
                 ax.plot(t,cluster['gamma_nk'],label=Pr(kk))
         if plotFlag:
             ax.legend()
-            ax.set_title("Primitive Probabilities (after {0:d} epochs)".format(self.epoch))
+            ax.set_title("Primitive Probabilities Run{0:d} (after {0:1} epochs)".format(run_number, self.epoch))
             plt.savefig(saveFigure, dpi=600)
+            plt.close()
             # plt.show()
         self.epoch += 1
         # Save likelihoods to txt file:
@@ -352,6 +357,7 @@ class GMM:
             for kk, cluster in enumerate(self.clusters):
                 likelihoods[:,kk+1] = cluster['gamma_nk']
             np.savetxt(saveFile, likelihoods)
+    
     def standard_expectation(self):
         totals = np.zeros(self.X.shape[0], dtype=np.float64)
         for kk, cluster in enumerate(self.clusters):
@@ -395,6 +401,7 @@ class GMM:
         for k, cluster in enumerate(self.clusters):
             cluster['gamma_nk'] /= self.totals
         self.offset = max(self.offset*0.5, 0.1)
+    
     def pf_expectation(self,T_forward):
         """ 
         Input:
@@ -596,6 +603,7 @@ class GMM:
         # Init  
         likelihoods_fileName, tlabels_fileName, prmlabels_fileName, manual_tlabels, manual_prmlabels, success_fileName, failureFile = createFileNames(1,currentNumTupdates)  
         self.initialize_clusters(n_primitives, means0=mu0, cov0=cov0, constraints=myConstraints)
+        run = 1
 
         # Train by running gmm for "run1" of the demonstration data    
         print("-------> training run1 ")
@@ -603,12 +611,13 @@ class GMM:
             if i == numIterTrain - 1: # save and plot likelihoods on the last iteration
                 likelihoods_figName = "figures/run1_likelihoods_epochs{0:d}_T{1:d}.png".format(self.epoch, currentNumTupdates)
                 self.expectation_step(
+                    run,
                     t=time,
-                    saveFigure = likelihoods_figName, 
+                    # saveFigure = likelihoods_figName, 
                     saveFile=likelihoods_fileName,
                     T_matrix_APF=transition)
             else: # T_matrix_APF implies that the expectation step is using an Augmented Particle Filter
-                self.expectation_step(T_matrix_APF=transition)
+                self.expectation_step(run, t=time, T_matrix_APF=transition)
             self.maximization_step()
             print("it: {0:d} likelihood function {1:e}".format(i, self.get_likelihood()))
         
@@ -657,12 +666,13 @@ class GMM:
                     if i == numIterTest - 1: # save and plot likelihoods on the last iteration
                         likelihoods_figName = "figures/run{0:d}_likelihoods_epochs{1:d}_T{2:d}.png".format(run_number, self.epoch, currentNumTupdates)
                         self.expectation_step(
+                            run_number,
                             t=time,
-                            saveFigure = likelihoods_figName,
+                            # saveFigure = likelihoods_figName,
                             saveFile = likelihoods_fileName,
                             T_matrix_APF=transition)
                     else:
-                        self.expectation_step(T_matrix_APF=transition)
+                        self.expectation_step(run_number, t=time, T_matrix_APF=transition, saveFile = likelihoods_fileName)
                     
                     self.maximization_step()
                     print("it: {0:d} likelihood  function {1:e}".format(i, self.get_likelihood()))
@@ -812,13 +822,14 @@ if __name__ == "__main__":
            the expectation_step called by train and test
     """
     print(">>>>>>>> PLOTS >>>>>>>>")
+    
     # ----------------------------------
     # Plot sensor data of labelled run 
     #   - for initial and final transition matrix
     #   - for run2 (really good) and run12 (sucks)
     #   - 4 plots     
     lastT = numTMatrixUpdates - 1
-    run2plot = [1, 2]
+    run2plot = [2, 12]
     trans2plot = [0,lastT]
 
     for i in range(2): 
@@ -830,9 +841,9 @@ if __name__ == "__main__":
                 prlabelfileTruth='../data/medium_cap/raw_medium_cap/run{0:d}_prmlabels'.format(run2plot[i])
                 )
             plt.savefig("figures/labelled_run{0:d}_T{1:d}.png".format(run2plot[i],trans2plot[t]),dpi=600)
-            plt.show()
+            # plt.show()
+            plt.close()
 
-    
     # ----------------------------------
     # Plot success_rate vs. #Tmatrix_updates 
     #   - legend: average success rate, success run2, success run12
@@ -844,25 +855,25 @@ if __name__ == "__main__":
 
     success_sum = np.zeros(numTMatrixUpdates)
     success_sum_prev = np.zeros(numTMatrixUpdates)
-    print(success_sum)
     for i in range(1,NUM_RUNS):
+        if i == 11 or i == 16:
+            continue
         success = np.genfromtxt("results/run{0:d}_successRates".format(i),skip_header=1)
         success = success[:,1]
-    #     print("run_i"+ str(success))
         success_sum = success_sum + success
-    # print(success_sum)
     success_avg = success_sum/(NUM_RUNS-1)
-    # print("avg"+ str(success_avg)) 
 
     plt.plot(Tupdate, success_a, label = 'run{0:d}'.format(run2plot[0]))
     plt.plot(Tupdate, success_b, label = 'run{0:d}'.format(run2plot[1]))
     plt.plot(Tupdate, success_avg, label = 'avg')
+    ax = plt.gca()
+    ax.xaxis.set_major_locator(MaxNLocator(integer=True))
     plt.ylabel('success')
     plt.xlabel('update number')
     plt.title('Success vs. T_matrix Updates')
     plt.legend()
     plt.savefig('figures/success_vs_T.png', dpi=600)
-    plt.show()
+    # plt.show()
     plt.close()
 
     # ----------------------------------
@@ -885,3 +896,4 @@ if __name__ == "__main__":
     # ----------------------------------
     # Plot confusion matrix 
 
+    print("---------- FIN -------------")
