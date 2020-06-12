@@ -734,7 +734,7 @@ if __name__ == "__main__":
         'M_z' : 17}
 
     # subset contains only the sensor data we are interested in: 3,4,6-17
-    subset = np.hstack((np.arange(var_idxs['vel_x'], 5), np.arange(6,18)))
+    subset = np.hstack((np.arange(3, 5), np.arange(6,18)))
     
     # Reorder the dictionary according to data in subset
     for key, val in var_idxs.items():
