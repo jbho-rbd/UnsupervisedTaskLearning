@@ -39,7 +39,7 @@ NUM_RUNS = 20 #20 #it will run the gmm for this number-1
 n_primitives = 6  
 numIterTrain = 20
 numIterTest = 20
-numTMatrixUpdates = 10
+numTMatrixUpdates = 15
 
 """ --------------------------------------------------------------------------------------
    Utility Functions
@@ -64,6 +64,10 @@ def sample_primitive(p):
             integer between 0-5 corresponding to the selected primitive(2,)
     """
     return bisect.bisect(np.cumsum(p), random.random())
+
+def initializeTransitionMatrix2Identity():
+    T = np.eye(n_primitives)
+    return T
 
 def initializeTransitionMatrix(final=False):
     """ 
@@ -773,7 +777,8 @@ if __name__ == "__main__":
         myGMM = GMM(X[:,subset])
         
         if i == 0:
-            transition = initializeTransitionMatrix()
+            # transition = initializeTransitionMatrix()
+            transition = initializeTransitionMatrix2Identity()
             createSuccessRateFile(1,i)
         else: 
             transition = updatedTransition
@@ -798,7 +803,8 @@ if __name__ == "__main__":
             mytestGMM = GMM(X[:,subset])
             
             if i == 0:
-                transition = initializeTransitionMatrix(final=True)
+                # transition = initializeTransitionMatrix(final=True)
+                transition = initializeTransitionMatrix2Identity()
                 np.savetxt("transitions/T_0", transition)   
                 createSuccessRateFile(run_number,i)
 

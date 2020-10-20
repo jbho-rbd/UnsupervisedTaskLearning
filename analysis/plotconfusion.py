@@ -2,11 +2,13 @@ import itertools
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import rc
-rc('text',usetex=True)
+# rc('text',usetex=True)
 from sklearn import svm, datasets
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import confusion_matrix
 from copy import copy
+import sys
+
 def plot_confusion_matrix(cm, title='Confusion matrix', cmap=plt.cm.Oranges,normalize=False):
     cm_abs = copy(cm)
     for i in range(cm.shape[0]):
@@ -33,11 +35,13 @@ def plot_confusion_matrix(cm, title='Confusion matrix', cmap=plt.cm.Oranges,norm
     plt.xlabel('Automatic Label')
     plt.tight_layout()
 
-cm = np.loadtxt('failcount_final.dat')
-# np.set_printoptions(precision=1) #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-print('Confusion matrix, without normalization')
-print(cm)
-fig, ax = plt.subplots()
-plot_confusion_matrix(cm,normalize=False)
-plt.savefig('cm.png',dpi=600)
-plt.show()
+
+if __name__ == "__main__":
+    cm = np.loadtxt('results/failcount.txt')
+    # np.set_printoptions(precision=1) #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    print('Confusion matrix, without normalization')
+    print(cm)
+    fig, ax = plt.subplots()
+    plot_confusion_matrix(cm,normalize=False)
+    plt.savefig('figures/cm.png',dpi=600)
+    plt.show()
