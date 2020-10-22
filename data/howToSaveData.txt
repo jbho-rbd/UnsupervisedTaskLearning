@@ -1,3 +1,7 @@
 how to save redis keys data into .txt
 
-redis-cli -h 127.0.0.1 -n 1 keys 'sai2::ConstructionBolting::pandaDrill::sensors::q*' >file.txt
+use the sai2-interfaces logger and plotter: 
+https://github.com/manips-sai-org/sai2-interfaces/tree/master/docs/08-logger
+
+to do that clone and build the repo
+then run the command: python3 interface/server.py templates/plot_logger.html
