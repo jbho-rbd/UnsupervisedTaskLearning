@@ -2,10 +2,9 @@
  gmm.py
  
  Input: raw sensor data    
- Output: labelled sensor data
+ Output: labelled sensor data and plots
  
-Jonathan Ho, Fall 2019
-Elena Galbally, Spring 2020
+Last update, Fall 2020
 ======================================================================================"""
 import imageio
 import matplotlib.animation as ani
@@ -29,7 +28,7 @@ from sklearn.cluster import KMeans
 from matplotlib.pyplot import figure, show
 from matplotlib.ticker import MaxNLocator
 
-from read_data import read_data0, read_data1
+from read_data import read_data1
 from plot_data import getlabels, plot_file , compute_success_rate
 
 """ --------------------------------------------------------------------------------------
@@ -593,7 +592,9 @@ class GMM:
                 if(labels[i] == prim):
                     tpairs.append([tlabels[i],tlabels[i+1]])
             time, X = read_data1('../data/medium_cap/raw_medium_cap/run1', 
-                '../data/medium_cap/raw_medium_cap/bias.force',output_fmt='array',tpairlist=tpairs)
+                '../data/medium_cap/raw_medium_cap/bias.force',
+                output_fmt='array',
+                tpairlist=tpairs)
             #each row of X is an observation
             #each column of X is a variable
             mu0[prim.value] = np.mean(X[:,subset],axis=0)
@@ -702,7 +703,7 @@ class GMM:
  
 
 """ --------------------------------------------------------------------------------------
-   Main
+   MAIN
 -----------------------------------------------------------------------------------------"""
 """ 
     - Initialize:
@@ -710,7 +711,8 @@ class GMM:
             * manually label one run (data from one human demo of the whole task) and extract 
               a mean and cov based on the manual labelling to seed the gmm algorithm
     - Training:
-            * train by running the gmm on run1 using the mean and cov from the manual labelling as seeds
+            * train by running the gmm on run1 using the mean and cov from the 
+              manual labelling as seeds
     - Testing:
             * test on other runs using the mean and cov from the training as seeds 
 """

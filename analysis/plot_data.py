@@ -1,18 +1,33 @@
+"""======================================================================================
+ plot_data.py
+ 
+ Functions: 
+    - plot_file
+    - getlabels
+    - compute_success_rate
+    - write_Pr_file
+
+ Main: computes the success rate for each run
+ 
+Last update, Fall 2020
+======================================================================================"""
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from scipy.spatial.transform import Rotation as R
 from matplotlib import rc, rcParams
-from read_data import read_data0, read_data1
+from read_data import read_data1
 from classifier import Pr
 import sys
 from shutil import copyfile
+
 def plot_file(file,tlabelfile=None,prlabelfile=None,tlabelfileTruth=None,prlabelfileTruth=None,
     plot_pos=True,plot_vel=True,plot_ori=True,plot_ang_vel=True,plot_force=True,plot_moment=True):
-    #y axis becomes z
-    #z axis becomes x
-    #x axis becomes y
     """
+    # y axis becomes z
+    # z axis becomes x
+    # x axis becomes y
+    
     Inputs: 
         file: filename of raw data collected using the redis logger
         tlabelfile: text file with the endtime of each primitive
@@ -20,24 +35,25 @@ def plot_file(file,tlabelfile=None,prlabelfile=None,tlabelfileTruth=None,prlabel
 
     """    
     t, p1, vels, euler, omegas, F, M = read_data1(file, '../data/medium_cap/raw_medium_cap/bias.force')#,t0=0,t1=5.0)
-    """
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    quiverlength = 0.03
-    poses_sampled = poses[0::50]
-    ax.quiver(poses_sampled[:,0,3], poses_sampled[:,1,3], poses_sampled[:,2,3],
-              poses_sampled[:,0,0], poses_sampled[:,1,0], poses_sampled[:,2,0],
-              color='r', length=quiverlength, arrow_length_ratio=0.05)
-    ax.quiver(poses_sampled[:,0,3], poses_sampled[:,1,3], poses_sampled[:,2,3],
-              poses_sampled[:,0,1], poses_sampled[:,1,1], poses_sampled[:,2,1],
-              color='b', length=quiverlength, arrow_length_ratio=0.05)
-    ax.quiver(poses_sampled[:,0,3], poses_sampled[:,1,3], poses_sampled[:,2,3],
-              poses_sampled[:,0,2], poses_sampled[:,1,2], poses_sampled[:,2,2],
-              color='g', length=quiverlength, arrow_length_ratio=0.05)
-    ax.set_xlabel('x')
-    ax.set_ylabel('y')
-    ax.set_zlabel('z')
-    """
+     
+    # Figure: Frames representing the cap trajectory and pose
+    # fig = plt.figure()
+    # ax = fig.add_subplot(111, projection='3d')
+    # quiverlength = 0.03
+    # poses_sampled = poses[0::50]
+    # ax.quiver(poses_sampled[:,0,3], poses_sampled[:,1,3], poses_sampled[:,2,3],
+    #           poses_sampled[:,0,0], poses_sampled[:,1,0], poses_sampled[:,2,0],
+    #           color='r', length=quiverlength, arrow_length_ratio=0.05)
+    # ax.quiver(poses_sampled[:,0,3], poses_sampled[:,1,3], poses_sampled[:,2,3],
+    #           poses_sampled[:,0,1], poses_sampled[:,1,1], poses_sampled[:,2,1],
+    #           color='b', length=quiverlength, arrow_length_ratio=0.05)
+    # ax.quiver(poses_sampled[:,0,3], poses_sampled[:,1,3], poses_sampled[:,2,3],
+    #           poses_sampled[:,0,2], poses_sampled[:,1,2], poses_sampled[:,2,2],
+    #           color='g', length=quiverlength, arrow_length_ratio=0.05)
+    # ax.set_xlabel('x')
+    # ax.set_ylabel('y')
+    # ax.set_zlabel('z')
+    
     nPlots = np.sum([int(flag) for flag in [plot_pos, plot_vel, plot_ori, plot_ang_vel, plot_force, plot_moment]])
     plotTruthLabels=tlabelfileTruth is not None and prlabelfileTruth is not None
     if plotTruthLabels:
@@ -210,15 +226,19 @@ def write_Pr_file(t,X, tlabelFile_groundTruth, prlabelFile_groundTruth):
         prs[i] = current_pr
     return np.hstack((np.reshape(t[:N],(N,1)), X[:N], np.reshape(prs[:N],(N,1))))
 
+""" --------------------------------------------------------------------------------------
+   MAIN
+-----------------------------------------------------------------------------------------"""
 if __name__ == "__main__":
     # run_number=int(sys.argv[1])
     failFileName = 'results/failcount.txt'
     copyfile('results/failcount0.txt',failFileName)
     # np.savetxt(failFileName, np.zeros((6,6),dtype=int))
+    
     for run_number in range(1, 19):
         if run_number == 11 or run_number == 16:
             continue
-        #---making labels---
+        #--- making labels ---
         # vlines=np.array([0.0, 0.84, 3.27, 4.21, 5.07, 6.74, 6.93, 7.44, 7.588, 8.06, 8.20, 8.68, 8.89, 9.56, 10.36])
         # np.savetxt("../data/medium_cap/raw_medium_cap/run{0:d}_tlabels".format(run_number),vlines[1:])
         # labels = [Pr.none, Pr.fsm, Pr.align, Pr.engage, Pr.screw,  Pr.none, Pr.screw, Pr.none, Pr.screw, Pr.none, Pr.screw, Pr.none, Pr.screw, Pr.tighten]
@@ -238,18 +258,19 @@ if __name__ == "__main__":
         # np.savetxt("../data/medium_cap/manually_labelled/run{0:d}_labelled".format(run_number),
         #     write_Pr_file(time,X,"../data/medium_cap/raw_medium_cap/run{0:d}_tlabels".format(run_number),"../data/medium_cap/raw_medium_cap/run{0:d}_prmlabels".format(run_number)),
         #     header=headerstr)
+
         #--- compute and plot success rate
         success_rate = compute_success_rate("results/run{0:d}_likelihoods_T0".format(run_number), "../data/medium_cap/raw_medium_cap/run{0:d}_tlabels".format(run_number),"../data/medium_cap/raw_medium_cap/run{0:d}_prmlabels".format(run_number),failureFile=failFileName)
         print("run: {0:d} success_rate: {1:f}".format(run_number, success_rate))
         
-        #---plotting
+        #--- plotting ---
         # rc('text',usetex=True)
         # rcParams['axes.titlesize'] = 'x-large'
         # rcParams['axes.labelsize'] = 'large'
         # rcParams['xtick.labelsize'] = 'x-large'
         # rcParams['ytick.labelsize'] = 'x-large'
 
-        #plot_file('../data/medium_cap/raw_medium_cap/run{0:d}'.format(run_number),tlabelfile="results/run{0:d}_tlabels".format(run_number),prlabelfile="results/run{0:d}_prmlabels".format(run_number))
+        # plot_file('../data/medium_cap/raw_medium_cap/run{0:d}'.format(run_number),tlabelfile="results/run{0:d}_tlabels".format(run_number),prlabelfile="results/run{0:d}_prmlabels".format(run_number))
         # plot_file('../data/medium_cap/raw_medium_cap/run{0:d}'.format(run_number),
         #     tlabelfile="results/run{0:d}_tlabels".format(run_number),prlabelfile="results/run{0:d}_prmlabels".format(run_number),
         #     tlabelfileTruth="../data/medium_cap/raw_medium_cap/run{0:d}_tlabels".format(run_number),prlabelfileTruth="../data/medium_cap/raw_medium_cap/run{0:d}_prmlabels".format(run_number)

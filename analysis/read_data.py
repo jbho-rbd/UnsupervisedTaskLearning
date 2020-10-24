@@ -1,9 +1,25 @@
+"""======================================================================================
+ read_data.py
+ 
+ Input: raw sensor data, which includes: 
+ - Time [0]  
+ - sai2::optitrack::ori_rigid_bodies [1-4]   
+ - sai2::optitrack::pos_rigid_bodies [5-7]  
+ - sai2::optitrack::timestamp [8]
+ - sai2::optoforceSensor::6Dsensor::force[9-15]
+ 
+ Output: processed sensor data
+ 
+Last update, Fall 2020
+======================================================================================"""
+
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from scipy.spatial.transform import Rotation as R
 from matplotlib import rc
 import bisect
+
 class Obs():
     def __init__(self, pos, ori, vel, ang_vel, force, moment):
         self.pos = pos
@@ -12,33 +28,47 @@ class Obs():
         self.ang_vel = ang_vel
         self.F = force
         self.M = moment
-#y axis becomes z
-#z axis becomes x
-#x axis becomes y
+
 def read_data0(runfile,forcebias):
+    """ 
+    depricated read data function 
+    used when logging data for 3 rigid bodies
+
+    Input:
+        runfile: (numTimesteps, numMeasuredVars) containing raw sensor data
+        forcebias: bias of the optoforce sensor (what it measures
+                   when you aren't touching anything)
+    Processing:
+        # y axis becomes z
+        # z axis becomes x
+        # x axis becomes y
+        # from quaternions to euler angles and angular velocities (omega) 
+    """
     dat=np.genfromtxt(runfile,skip_header=2)
+    # bias force
     FM=np.genfromtxt(forcebias)
     F0=FM[:3]
     M0=FM[3:]
+    # num of timestesp
     N = dat.shape[0]
     t=dat[:,0] - dat[0,0]
-    #quaternions of rigid bodies
+    # quaternions of rigid bodies
     q1=dat[:,[1,3,4,2]]
     #q2=dat[:,[5,8,6,7]]
     #q3=dat[:,[9,12,10,11]]
-    #final pose
+    # final pose
     p1_final = dat[-1,[15,13,14]]
     r_final_inv = R.from_quat(q1[-1]).inv()
-    #pos of rigid bodies
+    # pos of rigid bodies
     p1=dat[:,[15,13,14]]-p1_final
     p2=dat[:,[18,16,17]]
     p3=dat[:,[21,19,20]]
-    #timestampoptitrack
+    # timestampoptitrack
     t_opti=dat[:,22]
-    #optiforce
+    # optoforce
     F=dat[:,[23,24,25]] - F0
     M=dat[:,[26,27,28]] - M0
-    #need to get poses
+    # poses
     poses = np.zeros((N, 4, 4))
     omegas = np.zeros((N,3))
     euler = np.zeros((N,3))
@@ -55,7 +85,23 @@ def read_data0(runfile,forcebias):
         omegas[i,2] = skew_angularvelocity[1,0]
     omegas[-1] = omegas[-2]
     return t, p1, euler, omegas, F, M
+
 def read_data1(runfile,forcebias,t0=0,t1=-1,output_fmt='',tpairlist=None):
+    """ 
+    data processing function used inside gmm.py
+
+    Input:
+        runfile: (numTimesteps, numMeasuredVars) containing raw sensor data
+                where numMeasuredVars = 16
+        forcebias, FM: bias of the optoforce sensor. This function
+                uses the optoforce measurement at the first timestep
+                of each run as the bias force for that run
+    Processing:
+        # y axis becomes z
+        # z axis becomes x
+        # x axis becomes y
+        # from quaternions to euler angles and angular velocities (omega) 
+    """
     dat=np.genfromtxt(runfile,skip_header=2)
     #collect final poses before truncating
     r_final_inv = R.from_quat(dat[-1,[1,3,4,2]]).inv()

@@ -4,7 +4,7 @@ Hi I'm a pato
 # Contents 
 ## Analysis: 
    - Key files
-      - gmm.py - used to identify and segment human demonstration data into primitives. Uses read_data.py and plot_data.py
+      - gmm.py - used to identify and segment human demonstration data into primitives. Uses read_data.py and plot_data.py. It requires having created 3 directories called: transitions, results, figures.
       - read_data.py - reads in raw sensor data and processes it (change of frame, offsets, quaternions...)
       - testmultiple.sh - bash script to run gmm on many runs at once
    - Ploting 
