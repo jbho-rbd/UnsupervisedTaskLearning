@@ -5,6 +5,7 @@ Hi I'm a pato
 ## Analysis: 
    - Key files
       - gmm.py - used to identify and segment human demonstration data into primitives. Uses read_data.py and plot_data.py. It requires having created 3 directories called: transitions, results, figures.
+      - initialProcessing_rawdata.py - script for use right after collecting sensor measurements. See file for how to use and functions.
       - read_data.py - reads in raw sensor data and processes it (change of frame, offsets, quaternions...)
       - testmultiple.sh - bash script to run gmm on many runs at once
    - Ploting 
@@ -19,8 +20,9 @@ Hi I'm a pato
        - test.py - uses classifier.py 
     
 ## Data: 
-    - human demonstrations of complete manipulation tasks
-    - manipulated object pose and contact forces and moments (recorded using optitrack and a 6DOF optoforce sensor)
+  - human demonstrations of complete manipulation tasks
+  - manipulated object pose and contact forces and moments (recorded using optitrack and a 6DOF optoforce sensor)
     
 ## Training: 
-    - network.py - learns a transition model for the task based on the data labelled by the gmm
+  - network.py 
+  - learns a transition model for the task based on the data labelled by the gmm

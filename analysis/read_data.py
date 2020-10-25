@@ -32,7 +32,7 @@ class Obs():
 def read_data0(runfile,forcebias):
     """ 
     depricated read data function 
-    used when logging data for 3 rigid bodies
+    used when logging data for 3 rigid bodies (fall 2018)
 
     Input:
         runfile: (numTimesteps, numMeasuredVars) containing raw sensor data
@@ -86,9 +86,9 @@ def read_data0(runfile,forcebias):
     omegas[-1] = omegas[-2]
     return t, p1, euler, omegas, F, M
 
-def read_data1(runfile,forcebias,t0=0,t1=-1,output_fmt='',tpairlist=None):
+def read_data1(runfile,forcebias=None,t0=0,t1=-1,output_fmt='',tpairlist=None):
     """ 
-    data processing function used inside gmm.py
+    data processing function used inside gmm.py and plot_data.py
 
     Input:
         runfile: (numTimesteps, numMeasuredVars) containing raw sensor data
@@ -108,7 +108,7 @@ def read_data1(runfile,forcebias,t0=0,t1=-1,output_fmt='',tpairlist=None):
     #final pose
     p1_final = dat[-1,[7,5,6]]
     t=dat[:,0] - dat[0,0]
-    FM=dat[0,9:15]
+    FM=dat[0,9:15] # force bias
     #now truncate the data
     if tpairlist:
         idxs=np.array([],dtype=int)
