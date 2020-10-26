@@ -89,37 +89,40 @@ def on_plot_hover(event):
 
 if experiment_name == 'pipe':
 	run_number = 1
-	t, p1, vels, euler, omegas, F, M = read_data1('../data/pipe/raw_pipe/run{0:d}_pipe'.format(run_number))
-	fig = plt.figure()
-	# plt = fig.add_subplot(111)
-	plt.plot(t,omegas[:,0],'r',label='$\omega_x$')
-	plt.plot(t,omegas[:,1],'g',label='$\omega_y$')
-	plt.plot(t,omegas[:,2],'b',label='$\omega_z$')
-	# plt.set_ylabel('rad/s')
-	fig.canvas.mpl_connect('motion_notify_event', on_plot_hover)           
-	plt.show()
-
-	# # 2- Choose split times and labels and generate run#_tlabels and run#_prmlabels
-	# vlines=np.array([0.0, 1.6, 4.00, 5.21, 6.00, 7.07, 7.50, 9.50, 
-	# 	9.90, 10.6, 11.4, 12.35, 13.0, 13.8, 14.6, 15.4,
+	# t, p1, vels, euler, omegas, F, M = read_data1('../data/pipe/raw_pipe/run{0:d}_pipe'.format(run_number))
+	# fig = plt.figure()
+	# # plt = fig.add_subplot(111)
+	# plt.plot(t,omegas[:,0],'r',label='$\omega_x$')
+	# plt.plot(t,omegas[:,1],'g',label='$\omega_y$')
+	# plt.plot(t,omegas[:,2],'b',label='$\omega_z$')
+	# # plt.set_ylabel('rad/s')
+	# fig.canvas.mpl_connect('motion_notify_event', on_plot_hover)           
+	# plt.show()
+	# 2- Choose split times and labels and generate run#_tlabels and run#_prmlabels
+	# vlines=np.array([0.0, 1.2, 4.00, 5.65, 6.38,
+	# 	7.11, 7.38, 9.03, 10.43, 11.19, 11.83, 12.36, 13.09, 13.76, 14.60, 15.52, 15.97,
 	# 	17,18.5])
-	# np.savetxt("../data/pipe/raw_pipe/run{0:d}_tlabels".format(run_number),vlines[1:])
-	# labels = [Pr.none, Pr.fsm, Pr.align, Pr.engage, Pr.screw, Pr.none, Pr.screw, 
-	# 	Pr.none, Pr.screw, Pr.none, Pr.screw, Pr.none, Pr.screw, Pr.none, Pr.screw,  
-	# 	Pr.tighten, Pr.none] #17
-	# np.savetxt("../data/pipe/raw_pipe/run{0:d}_prmlabels".format(run_number),[label.value for label in labels])
-	# # 3- make plot to see if the manually selected labels look reasonable
-	# plot_file('../data/pipe/raw_pipe/run{0:d}_pipe'.format(run_number),
-	# 	tlabelfile="../data/pipe/raw_pipe/run{0:d}_tlabels".format(run_number),
-	# 	prlabelfile="../data/pipe/raw_pipe/run{0:d}_prmlabels".format(run_number))
-	# plt.savefig("figures2label/pipe/run{0:d}_raw_labels.png".format(run_number),dpi=600, bbox_inches = 'tight',pad_inches = 0)
-	# plt.close()run_number = 1
-
+	vlines=np.array([0.0, 1.2, 4.00, 5.65, 6.38,
+		7.11, 7.38, 9.03, 9.75, 10.43, 11.19, 11.83, 12.36, 13.09, 13.76, 14.60, 15.52, 
+		17,18.5])
+	np.savetxt("../data/pipe/raw_pipe/run{0:d}_tlabels".format(run_number),vlines[1:])
+	labels = [Pr.none, Pr.fsm, Pr.align, Pr.engage, 
+		Pr.screw, Pr.none, Pr.screw, Pr.none, Pr.screw, Pr.none, Pr.screw, Pr.none, Pr.screw, Pr.none, Pr.screw, Pr.none, 
+		Pr.tighten, Pr.none] #17
+	np.savetxt("../data/pipe/raw_pipe/run{0:d}_prmlabels".format(run_number),[label.value for label in labels])
 	# 3- make plot to see if the manually selected labels look reasonable
-	# plot_file('../data/pipe/raw_pipe/run{0:d}_pipe'.format(run_number),
-	# 	tlabelfile="../data/pipe/raw_pipe/run{0:d}_tlabels".format(run_number),
-	# 	prlabelfile="../data/pipe/raw_pipe/run{0:d}_prmlabels".format(run_number))
-	# plt.savefig("figures2label/pipe/run{0:d}_raw_labels.png".format(run_number),dpi=600, bbox_inches = 'tight',pad_inches = 0)
-	# plt.close()
+	plot_file('../data/pipe/raw_pipe/run{0:d}_pipe'.format(run_number),
+		tlabelfile="../data/pipe/raw_pipe/run{0:d}_tlabels".format(run_number),
+		prlabelfile="../data/pipe/raw_pipe/run{0:d}_prmlabels".format(run_number))
+	plt.savefig("figures2label/pipe/run{0:d}_raw_labels.png".format(run_number),dpi=600, bbox_inches = 'tight',pad_inches = 0)
+	plt.close()
 
 print("patito ha terminado!")
+
+
+
+# process raw data
+
+# interactive plot
+
+# select labels and plot
