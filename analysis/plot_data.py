@@ -230,7 +230,7 @@ def write_Pr_file(t,X, tlabelFile_groundTruth, prlabelFile_groundTruth):
 """ --------------------------------------------------------------------------------------
    MAIN
 -----------------------------------------------------------------------------------------"""
-if __name__ == "__main__":
+# if __name__ == "__main__":
     # run_number=int(sys.argv[1])
     # failFileName = 'results/failcount.txt' #SEE ME
     # copyfile('results/failcount0.txt',failFileName) #SEE ME
@@ -240,78 +240,57 @@ if __name__ == "__main__":
     #     if run_number == 11 or run_number == 16: #SEE ME
     #         continue #SEE ME
 
-        #--- making labels: tlabels and prmlabels ---
-        # vlines=np.array([0.0, 0.84, 3.27, 4.21, 5.07, 6.74, 6.93, 7.44, 7.588, 8.06, 8.20, 8.68, 8.89, 9.56, 10.36])
-        # np.savetxt("../data/medium_cap/raw_medium_cap/run{0:d}_tlabels".format(run_number),vlines[1:])
-        # labels = [Pr.none, Pr.fsm, Pr.align, Pr.engage, Pr.screw,  Pr.none, Pr.screw, Pr.none, Pr.screw, Pr.none, Pr.screw, Pr.none, Pr.screw, Pr.tighten]
-        # np.savetxt("../data/medium_cap/raw_medium_cap/run{0:d}_prmlabels".format(run_number),[label.value for label in labels])
-        # plot_file('../data/medium_cap/raw_medium_cap/run{0:d}'.format(run_number))
-        # plot_file('../data/medium_cap/raw_medium_cap/run{0:d}'.format(run_number),tlabelfile="../data/medium_cap/raw_medium_cap/run{0:d}_tlabels".format(run_number),prlabelfile="../data/medium_cap/raw_medium_cap/run{0:d}_prmlabels".format(run_number))
-        
-        #--- saving tlabels and prmlabels from likelihoods files  ----
-        # dummya, dummyb, prs = getlabels("results/run{0:d}_likelihoods".format(run_number), tlabelFile="results/run{0:d}_tlabels".format(run_number), prlabelFile="results/run{0:d}_prmlabels".format(run_number))
-        # getlabels("results/run{0:d}_likelihoods_T0".format(run_number), 
-        #     tlabelFile="results/run{0:d}_tlabels".format(run_number), 
-        #     prlabelFile="results/run{0:d}_prmlabels".format(run_number)) #SEE ME
-        
-        #--- creating prm files? ---
-        # time, X = read_data1('../data/medium_cap/raw_medium_cap/run' + str(run_number), '../data/medium_cap/raw_medium_cap/bias.force',output_fmt='array')
-        # N = len(prs)
-        # headerstr = "time pos_x pos_y pos_z ori_x ori_y ori_z vel_x vel_y vel_z angvel_x angvel_y angvel_z Fx Fy Fz Mx My Mz Pr"
-        # # np.savetxt("../data/medium_cap/auto_labelled/run{0:d}_labelled".format(run_number),np.hstack((np.reshape(time[:N],(N,1)), X[:N], np.reshape(prs,(N,1)))),header=headerstr)
-        # np.savetxt("../data/medium_cap/manually_labelled/run{0:d}_labelled".format(run_number),
-        #     write_Pr_file(time,X,"../data/medium_cap/raw_medium_cap/run{0:d}_tlabels".format(run_number),
-        #         "../data/medium_cap/raw_medium_cap/run{0:d}_prmlabels".format(run_number)),
-        #     header=headerstr)
+    #--- making labels: tlabels and prmlabels ---
+    # vlines=np.array([0.0, 0.84, 3.27, 4.21, 5.07, 6.74, 6.93, 7.44, 7.588, 8.06, 8.20, 8.68, 8.89, 9.56, 10.36])
+    # np.savetxt("../data/medium_cap/raw_medium_cap/run{0:d}_tlabels".format(run_number),vlines[1:])
+    # labels = [Pr.none, Pr.fsm, Pr.align, Pr.engage, Pr.screw,  Pr.none, Pr.screw, Pr.none, Pr.screw, Pr.none, Pr.screw, Pr.none, Pr.screw, Pr.tighten]
+    # np.savetxt("../data/medium_cap/raw_medium_cap/run{0:d}_prmlabels".format(run_number),[label.value for label in labels])
+    # plot_file('../data/medium_cap/raw_medium_cap/run{0:d}'.format(run_number))
+    # plot_file('../data/medium_cap/raw_medium_cap/run{0:d}'.format(run_number),
+    #     tlabelfile="../data/medium_cap/raw_medium_cap/run{0:d}_tlabels".format(run_number),
+    #     prlabelfile="../data/medium_cap/raw_medium_cap/run{0:d}_prmlabels".format(run_number))
+    
+    #--- saving tlabels and prmlabels from likelihoods files  ----
+    # dummya, dummyb, prs = getlabels("results/run{0:d}_likelihoods".format(run_number), tlabelFile="results/run{0:d}_tlabels".format(run_number), prlabelFile="results/run{0:d}_prmlabels".format(run_number))
+    # getlabels("results/run{0:d}_likelihoods_T0".format(run_number), 
+    #     tlabelFile="results/run{0:d}_tlabels".format(run_number), 
+    #     prlabelFile="results/run{0:d}_prmlabels".format(run_number)) #SEE ME
+    
+    #--- creating prm files? ---
+    # time, X = read_data1('../data/medium_cap/raw_medium_cap/run' + str(run_number), '../data/medium_cap/raw_medium_cap/bias.force',output_fmt='array')
+    # N = len(prs)
+    # headerstr = "time pos_x pos_y pos_z ori_x ori_y ori_z vel_x vel_y vel_z angvel_x angvel_y angvel_z Fx Fy Fz Mx My Mz Pr"
+    # # np.savetxt("../data/medium_cap/auto_labelled/run{0:d}_labelled".format(run_number),np.hstack((np.reshape(time[:N],(N,1)), X[:N], np.reshape(prs,(N,1)))),header=headerstr)
+    # np.savetxt("../data/medium_cap/manually_labelled/run{0:d}_labelled".format(run_number),
+    #     write_Pr_file(time,X,"../data/medium_cap/raw_medium_cap/run{0:d}_tlabels".format(run_number),
+    #         "../data/medium_cap/raw_medium_cap/run{0:d}_prmlabels".format(run_number)),
+    #     header=headerstr)
 
-        #--- compute and plot success rate
-        # success_rate = compute_success_rate("results/run{0:d}_likelihoods_T0".format(run_number), 
-        #     "../data/medium_cap/raw_medium_cap/run{0:d}_tlabels".format(run_number),
-        #     "../data/medium_cap/raw_medium_cap/run{0:d}_prmlabels".format(run_number),
-        #     failureFile=failFileName) #SEE ME
-        # print("run: {0:d} success_rate: {1:f}".format(run_number, success_rate)) #SEE ME
-        
-        #--- plotting ---  DO THIS
-        rc('text',usetex=True)
-        rcParams['axes.titlesize'] = 'x-large'
-        rcParams['axes.labelsize'] = 'large'
-        rcParams['xtick.labelsize'] = 'x-large'
-        rcParams['ytick.labelsize'] = 'x-large'
-
-        # plot_file('../data/medium_cap/raw_medium_cap/run{0:d}'.format(run_number),
-        #     tlabelfile="results/run{0:d}_tlabels".format(run_number),
-        #     prlabelfile="results/run{0:d}_prmlabels".format(run_number))
-        # plot_file('../data/medium_cap/raw_medium_cap/run{0:d}'.format(run_number),
-        #     tlabelfile="results/run{0:d}_tlabels".format(run_number),
-        #     prlabelfile="results/run{0:d}_prmlabels".format(run_number),
-        #     tlabelfileTruth="../data/medium_cap/raw_medium_cap/run{0:d}_tlabels".format(run_number),
-        #     prlabelfileTruth="../data/medium_cap/raw_medium_cap/run{0:d}_prmlabels".format(run_number),
-        #     plot_pos=True,plot_ori=True, plot_vel=True,plot_force=True)
-        # plot_file('../data/medium_cap/raw_medium_cap/run1'.format(run_number),
-        #     tlabelfile="../data/medium_cap/raw_medium_cap/run1_tlabels".format(run_number),
-        #     prlabelfile="../data/medium_cap/raw_medium_cap/run1_prmlabels".format(run_number))
-       
-        # NUM_RUNS = 21 
-        # for run_number in range(20, NUM_RUNS): 
-        #     print('run {0:d}'.format(run_number))       
-        #     plot_file('../data/bulb/raw_bulb/run{0:d}_bulb'.format(run_number))
-        #     plt.savefig("figures2label/bulb/run{0:d}_bulb_raw.png".format(run_number),dpi=600, bbox_inches = 'tight',pad_inches = 0)
-        #     plt.close()
-
-        # NUM_RUNS = 26 
-        # for run_number in range(1, NUM_RUNS): 
-        #     print('run {0:d}'.format(run_number))       
-        #     plot_file('../data/pipe/raw_pipe/run{0:d}_pipe'.format(run_number))
-        #     plt.savefig("figures2label/pipe/run{0:d}_pipe_raw.png".format(run_number),dpi=600, bbox_inches = 'tight',pad_inches = 0)
-        #     plt.close()
-
-        NUM_RUNS = 21 
-        for run_number in range(12, NUM_RUNS): 
-            print('run {0:d}'.format(run_number))       
-            plot_file('../data/medium_cap/raw_medium_cap/run{0:d}'.format(run_number))
-            plt.savefig("figures2label/cap/run{0:d}_cap_raw.png".format(run_number),dpi=600, bbox_inches = 'tight',pad_inches = 0)
-            plt.close()
-
-        # plot_file('../data/medium_cap/raw_medium_cap/run2')
-        # plt.savefig("figures2label/cap/run2_raw.png",dpi=600, bbox_inches = 'tight',pad_inches = 0)
-        # plt.close()
+    #--- compute and plot success rate
+    # success_rate = compute_success_rate("results/run{0:d}_likelihoods_T0".format(run_number), 
+    #     "../data/medium_cap/raw_medium_cap/run{0:d}_tlabels".format(run_number),
+    #     "../data/medium_cap/raw_medium_cap/run{0:d}_prmlabels".format(run_number),
+    #     failureFile=failFileName) #SEE ME
+    # print("run: {0:d} success_rate: {1:f}".format(run_number, success_rate)) #SEE ME
+    
+    #--- plotting ---  
+    # rc('text',usetex=True)
+    # rcParams['axes.titlesize'] = 'x-large'
+    # rcParams['axes.labelsize'] = 'large'
+    # rcParams['xtick.labelsize'] = 'x-large'
+    # rcParams['ytick.labelsize'] = 'x-large'
+    # plot_file('../data/medium_cap/raw_medium_cap/run{0:d}'.format(run_number),
+    #     tlabelfile="results/run{0:d}_tlabels".format(run_number),
+    #     prlabelfile="results/run{0:d}_prmlabels".format(run_number))
+    # plot_file('../data/medium_cap/raw_medium_cap/run{0:d}'.format(run_number),
+    #     tlabelfile="results/run{0:d}_tlabels".format(run_number),
+    #     prlabelfile="results/run{0:d}_prmlabels".format(run_number),
+    #     tlabelfileTruth="../data/medium_cap/raw_medium_cap/run{0:d}_tlabels".format(run_number),
+    #     prlabelfileTruth="../data/medium_cap/raw_medium_cap/run{0:d}_prmlabels".format(run_number),
+    #     plot_pos=True,plot_ori=True, plot_vel=True,plot_force=True)
+    # plot_file('../data/medium_cap/raw_medium_cap/run1'.format(run_number),
+    #     tlabelfile="../data/medium_cap/raw_medium_cap/run1_tlabels".format(run_number),
+    #     prlabelfile="../data/medium_cap/raw_medium_cap/run1_prmlabels".format(run_number))
+    # plot_file('../data/medium_cap/raw_medium_cap/run2')
+    # plt.savefig("figures2label/cap/run2_raw.png",dpi=600, bbox_inches = 'tight',pad_inches = 0)
+    # plt.close()
