@@ -89,6 +89,7 @@ def on_plot_hover(event):
 
 if experiment_name == 'pipe':
 	run_number = 1
+	# "interactive" angular velocities plot with tooltip to give x,y values when hovering over a line on the plot
 	# t, p1, vels, euler, omegas, F, M = read_data1('../data/pipe/raw_pipe/run{0:d}_pipe'.format(run_number))
 	# fig = plt.figure()
 	# # plt = fig.add_subplot(111)

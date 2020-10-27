@@ -1,5 +1,5 @@
 """======================================================================================
- gmm.py
+ gmm_pipe.py
  
  Input: raw sensor data    
  Output: labelled sensor data and plots
@@ -34,11 +34,11 @@ from plot_data import getlabels, plot_file , compute_success_rate
 """ --------------------------------------------------------------------------------------
    Global Constants
 -----------------------------------------------------------------------------------------"""
-NUM_RUNS = 3 #20 #it will run the gmm for this number-1
+NUM_RUNS = 25 #20 #it will run the gmm for this number-1
 n_primitives = 6  
-numIterTrain = 5 #20
-numIterTest = 5 #20
-numTMatrixUpdates = 1 #15
+numIterTrain = 20
+numIterTest = 20
+numTMatrixUpdates = 1
 
 """ --------------------------------------------------------------------------------------
    Utility Functions
@@ -230,8 +230,8 @@ def createFileNames(run_number, currentNumTupdates):
     likelihoods_fileName = "results/run{0:d}_likelihoods_T{1:d}".format(run_number, currentNumTupdates)
     tlabels_fileName = "results/run{0:d}_tlabels_T{1:d}".format(run_number, currentNumTupdates)
     prmlabels_fileName = "results/run{0:d}_prmlabels_T{1:d}".format(run_number, currentNumTupdates)
-    manual_tlabels = "../data/medium_cap/raw_medium_cap/run{0:d}_tlabels".format(run_number)
-    manual_prmlabels = "../data/medium_cap/raw_medium_cap/run{0:d}_prmlabels".format(run_number)
+    manual_tlabels = "../data/pipe/raw_pipe/run{0:d}_tlabels".format(run_number)
+    manual_prmlabels = "../data/pipe/raw_pipe/run{0:d}_prmlabels".format(run_number)
     success_fileName = "results/run{0:d}_successRates".format(run_number)
     failureFile = "results/run{0:d}_failures_T{1:d}".format(run_number, currentNumTupdates)
     return likelihoods_fileName, tlabels_fileName, prmlabels_fileName, manual_tlabels, manual_prmlabels, success_fileName, failureFile
@@ -329,9 +329,9 @@ class GMM:
 
     def expectation_step(self,run_number, t=None, saveFigure = None, saveFile=None,T_matrix_APF=None, T_matrix_standard=None):
         """
-            Output: computes p(belong to primitive | X) for each X
-            It saves these likelihoods to a .txt
-            Uses: a particle filter with a heuristic forward model: T(sn | sn-1) 
+            - Output: computes p(belong to primitive | X) for each X
+              It saves these likelihoods to a .txt
+            - Uses: a particle filter with a heuristic forward model: T(sn | sn-1) 
         """
         plotFlag = t is not None and saveFigure is not None
         if plotFlag:
@@ -583,16 +583,16 @@ class GMM:
         print("-------> manual labelling of run1 ")
         mu0 = np.zeros((n_primitives,N))
         cov0 = np.zeros((n_primitives,N,N))
-        tlabels = np.genfromtxt("../data/medium_cap/raw_medium_cap/run1_tlabels",dtype=float)
+        tlabels = np.genfromtxt("../data/pipe/raw_pipe/run1_tlabels",dtype=float)
         tlabels = np.insert(tlabels,0,0.0)
-        labels=[Pr(int(idx)) for idx in np.genfromtxt("../data/medium_cap/raw_medium_cap/run1_prmlabels")]
+        labels=[Pr(int(idx)) for idx in np.genfromtxt("../data/pipe/raw_pipe/run1_prmlabels")]
         for prim in [Pr.none, Pr.fsm, Pr.align, Pr.engage, Pr.screw, Pr.tighten]:
             tpairs = []
             for i in range(len(labels)):#collect different labels and time periods corresponding to this primitive
                 if(labels[i] == prim):
                     tpairs.append([tlabels[i],tlabels[i+1]])
-            time, X = read_data1('../data/medium_cap/raw_medium_cap/run1', 
-                '../data/medium_cap/raw_medium_cap/bias.force',
+            time, X = read_data1('../data/pipe/raw_pipe/run1', 
+                '../data/pipe/raw_pipe/bias.force',
                 output_fmt='array',
                 tpairlist=tpairs)
             #each row of X is an observation
@@ -696,10 +696,10 @@ class GMM:
         # Save tlabels and prmlabels from likelihoods files  
         getlabels(likelihoods_fileName, tlabelFile=tlabels_fileName, prlabelFile=prmlabels_fileName)
         
-        # Compute, save and plot success rate
-        success_rate = compute_success_rate(likelihoods_fileName, manual_tlabels, manual_prmlabels)
-        saveSuccessRateFile(success_fileName, success_rate, currentNumTupdates)
-        print("-------> testing success_rate run{0:d}: {1:f}".format(run_number, success_rate))
+        # # Compute, save and plot success rate
+        # success_rate = compute_success_rate(likelihoods_fileName, manual_tlabels, manual_prmlabels)
+        # saveSuccessRateFile(success_fileName, success_rate, currentNumTupdates)
+        # print("-------> testing success_rate run{0:d}: {1:f}".format(run_number, success_rate))
  
 
 """ --------------------------------------------------------------------------------------
@@ -771,9 +771,8 @@ if __name__ == "__main__":
         # ------------------------
         #       Train on run 1  
         # ------------------------
-        time,X = read_data1('../data/medium_cap/raw_medium_cap/run1', 
-            '../data/medium_cap/raw_medium_cap/bias.force',
-            output_fmt='array',t0=0.0, t1 = 10.5)
+        time,X = read_data1('../data/pipe/raw_pipe/run1', 
+            output_fmt='array')#,t0=0.0, t1 = 18.0) #0 to 10.5 for cap
         
         # Init
         myGMM = GMM(X[:,subset])
@@ -781,7 +780,7 @@ if __name__ == "__main__":
         if i == 0:
             transition = initializeTransitionMatrix()
             # transition = initializeTransitionMatrix2Identity()
-            createSuccessRateFile(1,i)
+            # createSuccessRateFile(1,i)
         else: 
             transition = updatedTransition
 
@@ -795,11 +794,11 @@ if __name__ == "__main__":
         # --------------------------
         for run_number in range(2, NUM_RUNS):
             
-            # run 11 is missing and 16 is shit
-            if run_number == 11 or run_number == 16:
-                continue
-            testfile='../data/medium_cap/raw_medium_cap/run{0:d}'.format(run_number)
-            time,X = read_data1(testfile, '../data/medium_cap/raw_medium_cap/bias.force',output_fmt='array')
+            # for the cap: run 11 is missing and 16 is shit
+            # if run_number == 11 or run_number == 16:
+                # continue
+            testfile='../data/pipe/raw_pipe/run{0:d}'.format(run_number)
+            time,X = read_data1(testfile, '../data/pipe/raw_pipe/bias.force',output_fmt='array')
             
             # Init
             mytestGMM = GMM(X[:,subset])
@@ -808,7 +807,7 @@ if __name__ == "__main__":
                 transition = initializeTransitionMatrix(final=True)
                 # transition = initializeTransitionMatrix2Identity()
                 np.savetxt("transitions/T_0", transition)   
-                createSuccessRateFile(run_number,i)
+                # createSuccessRateFile(run_number,i)
 
             else: 
                 transition = updatedTransition
@@ -838,94 +837,104 @@ if __name__ == "__main__":
     #   - 4 plots     
     lastT = numTMatrixUpdates - 1
     run2plot = [2, 12]
-    trans2plot = [0,lastT]
+    # trans2plot = [0,lastT]
+    trans2plot = 0
 
     for i in range(2): 
-        for t in range(2):
-            plot_file('../data/medium_cap/raw_medium_cap/run{0:d}'.format(run2plot[i]),
-                tlabelfile="results/run{0:d}_tlabels_T{1:d}".format(run2plot[i],trans2plot[t]),
-                prlabelfile="results/run{0:d}_prmlabels_T{1:d}".format(run2plot[i],trans2plot[t]),
-                tlabelfileTruth='../data/medium_cap/raw_medium_cap/run{0:d}_tlabels'.format(run2plot[i]),
-                prlabelfileTruth='../data/medium_cap/raw_medium_cap/run{0:d}_prmlabels'.format(run2plot[i])
-                )
-            plt.savefig("figures/labelled_run{0:d}_T{1:d}.png".format(run2plot[i],trans2plot[t]),dpi=600)
-            # plt.show()
-            plt.close()
+        plot_file('../data/pipe/raw_pipe/run{0:d}'.format(run2plot[i]),
+            tlabelfile="results/run{0:d}_tlabels_T{1:d}".format(run2plot[i],trans2plot),
+            prlabelfile="results/run{0:d}_prmlabels_T{1:d}".format(run2plot[i],trans2plot)
+            )
+        plt.savefig("figures/labelled_run{0:d}_T{1:d}.png".format(run2plot[i],trans2plot),dpi=600)
+        # plt.show()
+        plt.close()
 
-    # ----------------------------------
-    # Plot success_rate vs. #Tmatrix_updates 
-    #   - legend: average success rate, success run2, success run12
-    success_a = np.genfromtxt("results/run{0:d}_successRates".format(run2plot[0]),skip_header=1)
-    success_a = success_a[:,1]
-    success_b = np.genfromtxt("results/run{0:d}_successRates".format(run2plot[1]),skip_header=1)
-    success_b = success_b[:,1]
-    Tupdate = np.arange(0,numTMatrixUpdates,1)
+    # for i in range(2): 
+    #     for t in range(2):
+    #         plot_file('../data/pipe/raw_pipe/run{0:d}'.format(run2plot[i]),
+    #             tlabelfile="results/run{0:d}_tlabels_T{1:d}".format(run2plot[i],trans2plot[t]),
+    #             prlabelfile="results/run{0:d}_prmlabels_T{1:d}".format(run2plot[i],trans2plot[t]),
+    #             tlabelfileTruth='../data/pipe/raw_pipe/run{0:d}_tlabels'.format(run2plot[i]),
+    #             prlabelfileTruth='../data/pipe/raw_pipe/run{0:d}_prmlabels'.format(run2plot[i])
+    #             )
+    #         plt.savefig("figures/labelled_run{0:d}_T{1:d}.png".format(run2plot[i],trans2plot[t]),dpi=600)
+    #         # plt.show()
+    #         plt.close()
 
-    success_sum = np.zeros(numTMatrixUpdates)
-    success_sum_prev = np.zeros(numTMatrixUpdates)
-    for i in range(1,NUM_RUNS):
-        if i == 11 or i == 16:
-            continue
-        success = np.genfromtxt("results/run{0:d}_successRates".format(i),skip_header=1)
-        success = success[:,1]
-        success_sum = success_sum + success
-    success_avg = success_sum/(NUM_RUNS-1)
+    # # ----------------------------------
+    # # Plot success_rate vs. #Tmatrix_updates 
+    # #   - legend: average success rate, success run2, success run12
+    # success_a = np.genfromtxt("results/run{0:d}_successRates".format(run2plot[0]),skip_header=1)
+    # success_a = success_a[:,1]
+    # success_b = np.genfromtxt("results/run{0:d}_successRates".format(run2plot[1]),skip_header=1)
+    # success_b = success_b[:,1]
+    # Tupdate = np.arange(0,numTMatrixUpdates,1)
 
-    plt.plot(Tupdate, success_a, label = 'run{0:d}'.format(run2plot[0]))
-    plt.plot(Tupdate, success_b, label = 'run{0:d}'.format(run2plot[1]))
-    plt.plot(Tupdate, success_avg, label = 'avg')
-    ax = plt.gca()
-    ax.xaxis.set_major_locator(MaxNLocator(integer=True))
-    plt.ylabel('success')
-    plt.xlabel('update number')
-    plt.title('Success vs. T_matrix Updates')
-    plt.legend()
-    plt.savefig('figures/success_vs_T.png', dpi=600)
-    # plt.show()
-    plt.close()
+    # success_sum = np.zeros(numTMatrixUpdates)
+    # success_sum_prev = np.zeros(numTMatrixUpdates)
+    # for i in range(1,NUM_RUNS):
+    #     if i == 11 or i == 16:
+    #         continue
+    #     success = np.genfromtxt("results/run{0:d}_successRates".format(i),skip_header=1)
+    #     success = success[:,1]
+    #     success_sum = success_sum + success
+    # success_avg = success_sum/(NUM_RUNS-1)
 
-    # ----------------------------------
-    # Plot Transition Matrix values convergence 
-
-    #   ------ 1) Diagonal values (legend with 6 numbers)
-    plt.subplot(211)
-    # Tdiag: each row has the 6 diagonal elements of one T matrix
-    # each column is the evolution of an element through the iterations
-    Tdiag = np.zeros((numTMatrixUpdates, n_primitives)) 
-    for i in range(numTMatrixUpdates):
-        T = np.genfromtxt("transitions/T_{0:d}".format(i))
-        Tdiag[i,:] = T.diagonal() # the 6 diagonal elements   
-    Tupdate = np.arange(0,numTMatrixUpdates,1)
-
-    for i in range(n_primitives):
-        plt.plot(Tupdate, Tdiag[:,i], label = 'T[{0:d},{1:d}]'.format(i+1,i+1))
-    ax1 = plt.gca()
-    ax1.xaxis.set_major_locator(MaxNLocator(integer=True))
+    # plt.plot(Tupdate, success_a, label = 'run{0:d}'.format(run2plot[0]))
+    # plt.plot(Tupdate, success_b, label = 'run{0:d}'.format(run2plot[1]))
+    # plt.plot(Tupdate, success_avg, label = 'avg')
+    # ax = plt.gca()
+    # ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+    # plt.ylabel('success')
     # plt.xlabel('update number')
-    plt.ylabel('diagonal values')
-    ax1.title.set_text('T Matrix Convergence: Diagonal Elements')
-    # plt.savefig('figures/T_diag_convergence.png', dpi=600)
-    plt.legend(loc=3, prop={'size': 6})
+    # plt.title('Success vs. T_matrix Updates')
+    # plt.legend()
+    # plt.savefig('figures/success_vs_T.png', dpi=600)
+    # # plt.show()
+    # plt.close()
 
-    #  ------ 2) 2norm of the difference between successive Ts
-    plt.subplot(212)
-    # Tdiff: frobenious norm of the difference between consecutive Ts
-    Tdiff = np.zeros(numTMatrixUpdates-1) 
-    for i in range(numTMatrixUpdates-1):
-        T = np.genfromtxt("transitions/T_{0:d}".format(i))
-        Tnext = np.genfromtxt("transitions/T_{0:d}".format(i+1))
-        Tdiff[i] = np.sqrt((np.linalg.norm(T-Tnext, 'fro')/36))
-    Tupdate = np.arange(1,numTMatrixUpdates,1)
-    plt.plot(Tupdate, Tdiff)
-    ax2 = plt.gca()
-    ax2.xaxis.set_major_locator(MaxNLocator(integer=True))
-    plt.xlabel('update number')
-    plt.ylabel('change in T values')
-    ax2.title.set_text('T Matrix Convergence: $||T_{i+1} - T_i||_{FRO}$')
-    plt.tight_layout()
-    plt.savefig('figures/T_convergence.png', dpi=600)
-    plt.show()
-    plt.close()
+    # # ----------------------------------
+    # # Plot Transition Matrix values convergence 
+
+    # #   ------ 1) Diagonal values (legend with 6 numbers)
+    # plt.subplot(211)
+    # # Tdiag: each row has the 6 diagonal elements of one T matrix
+    # # each column is the evolution of an element through the iterations
+    # Tdiag = np.zeros((numTMatrixUpdates, n_primitives)) 
+    # for i in range(numTMatrixUpdates):
+    #     T = np.genfromtxt("transitions/T_{0:d}".format(i))
+    #     Tdiag[i,:] = T.diagonal() # the 6 diagonal elements   
+    # Tupdate = np.arange(0,numTMatrixUpdates,1)
+
+    # for i in range(n_primitives):
+    #     plt.plot(Tupdate, Tdiag[:,i], label = 'T[{0:d},{1:d}]'.format(i+1,i+1))
+    # ax1 = plt.gca()
+    # ax1.xaxis.set_major_locator(MaxNLocator(integer=True))
+    # # plt.xlabel('update number')
+    # plt.ylabel('diagonal values')
+    # ax1.title.set_text('T Matrix Convergence: Diagonal Elements')
+    # # plt.savefig('figures/T_diag_convergence.png', dpi=600)
+    # plt.legend(loc=3, prop={'size': 6})
+
+    # #  ------ 2) 2norm of the difference between successive Ts
+    # plt.subplot(212)
+    # # Tdiff: frobenious norm of the difference between consecutive Ts
+    # Tdiff = np.zeros(numTMatrixUpdates-1) 
+    # for i in range(numTMatrixUpdates-1):
+    #     T = np.genfromtxt("transitions/T_{0:d}".format(i))
+    #     Tnext = np.genfromtxt("transitions/T_{0:d}".format(i+1))
+    #     Tdiff[i] = np.sqrt((np.linalg.norm(T-Tnext, 'fro')/36))
+    # Tupdate = np.arange(1,numTMatrixUpdates,1)
+    # plt.plot(Tupdate, Tdiff)
+    # ax2 = plt.gca()
+    # ax2.xaxis.set_major_locator(MaxNLocator(integer=True))
+    # plt.xlabel('update number')
+    # plt.ylabel('change in T values')
+    # ax2.title.set_text('T Matrix Convergence: $||T_{i+1} - T_i||_{FRO}$')
+    # plt.tight_layout()
+    # plt.savefig('figures/T_convergence.png', dpi=600)
+    # plt.show()
+    # plt.close()
 
     # ----------------------------------
     # Plot confusion matrix 
