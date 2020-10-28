@@ -71,6 +71,14 @@ def on_plot_hover(event):
 # 	    plt.savefig("figures2label/bulb/run{0:d}_bulb_raw.png".format(run_number),dpi=600, bbox_inches = 'tight',pad_inches = 0)
 # 	    plt.close()
 
+if experiment_name == 'bulb1':
+	print('bulb1')
+	for run_number in range(run_number_start, NUM_RUNS): 
+	    print('run {0:d}'.format(run_number))       
+	    plot_file('../data/bulb/raw_bulb_1/run{0:d}'.format(run_number))
+	    plt.savefig("figures2label/bulb_1/run{0:d}_bulb_raw1.png".format(run_number),dpi=600, bbox_inches = 'tight',pad_inches = 0)
+	    plt.close()
+
 # print("patito eligiendo tiempos")
 
 # if experiment_name == 'cap':
@@ -87,8 +95,8 @@ def on_plot_hover(event):
 # 	plt.savefig("figures2label/cap/run{0:d}_raw_labelTest.png".format(run_number),dpi=600, bbox_inches = 'tight',pad_inches = 0)
 # 	plt.close()
 
-if experiment_name == 'pipe':
-	run_number = 1
+# if experiment_name == 'pipe':
+# 	run_number = 1
 	# "interactive" angular velocities plot with tooltip to give x,y values when hovering over a line on the plot
 	# t, p1, vels, euler, omegas, F, M = read_data1('../data/pipe/raw_pipe/run{0:d}_pipe'.format(run_number))
 	# fig = plt.figure()
@@ -103,20 +111,20 @@ if experiment_name == 'pipe':
 	# vlines=np.array([0.0, 1.2, 4.00, 5.65, 6.38,
 	# 	7.11, 7.38, 9.03, 10.43, 11.19, 11.83, 12.36, 13.09, 13.76, 14.60, 15.52, 15.97,
 	# 	17,18.5])
-	vlines=np.array([0.0, 1.2, 4.00, 5.65, 6.38,
-		7.11, 7.38, 9.03, 9.75, 10.43, 11.19, 11.83, 12.36, 13.09, 13.76, 14.60, 15.52, 
-		17,18.5])
-	np.savetxt("../data/pipe/raw_pipe/run{0:d}_tlabels".format(run_number),vlines[1:])
-	labels = [Pr.none, Pr.fsm, Pr.align, Pr.engage, 
-		Pr.screw, Pr.none, Pr.screw, Pr.none, Pr.screw, Pr.none, Pr.screw, Pr.none, Pr.screw, Pr.none, Pr.screw, Pr.none, 
-		Pr.tighten, Pr.none] #17
-	np.savetxt("../data/pipe/raw_pipe/run{0:d}_prmlabels".format(run_number),[label.value for label in labels])
-	# 3- make plot to see if the manually selected labels look reasonable
-	plot_file('../data/pipe/raw_pipe/run{0:d}_pipe'.format(run_number),
-		tlabelfile="../data/pipe/raw_pipe/run{0:d}_tlabels".format(run_number),
-		prlabelfile="../data/pipe/raw_pipe/run{0:d}_prmlabels".format(run_number))
-	plt.savefig("figures2label/pipe/run{0:d}_raw_labels.png".format(run_number),dpi=600, bbox_inches = 'tight',pad_inches = 0)
-	plt.close()
+	# vlines=np.array([0.0, 1.2, 4.00, 5.65, 6.38,
+	# 	7.11, 7.38, 9.03, 9.75, 10.43, 11.19, 11.83, 12.36, 13.09, 13.76, 14.60, 15.52, 
+	# 	17,18.5])
+	# np.savetxt("../data/pipe/raw_pipe/run{0:d}_tlabels".format(run_number),vlines[1:])
+	# labels = [Pr.none, Pr.fsm, Pr.align, Pr.engage, 
+	# 	Pr.screw, Pr.none, Pr.screw, Pr.none, Pr.screw, Pr.none, Pr.screw, Pr.none, Pr.screw, Pr.none, Pr.screw, Pr.none, 
+	# 	Pr.tighten, Pr.none] #17
+	# np.savetxt("../data/pipe/raw_pipe/run{0:d}_prmlabels".format(run_number),[label.value for label in labels])
+	# # 3- make plot to see if the manually selected labels look reasonable
+	# plot_file('../data/pipe/raw_pipe/run{0:d}_pipe'.format(run_number),
+	# 	tlabelfile="../data/pipe/raw_pipe/run{0:d}_tlabels".format(run_number),
+	# 	prlabelfile="../data/pipe/raw_pipe/run{0:d}_prmlabels".format(run_number))
+	# plt.savefig("figures2label/pipe/run{0:d}_raw_labels.png".format(run_number),dpi=600, bbox_inches = 'tight',pad_inches = 0)
+	# plt.close()
 
 print("patito ha terminado!")
 
