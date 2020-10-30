@@ -43,33 +43,53 @@ def on_plot_hover(event):
         if curve.contains(event)[0]:
             print "over %s" % curve.get_gid()
 
-# # 1- process raw data (read_data) and make plots to see how to split it manually
-# # TODO just edit the names of the directories based on the cmd input instead of copying the code
-# print('patito dibujando')
-# if experiment_name == 'pipe':
-# 	print('pipe')
-# 	NUM_RUNS = 26 
-# 	for run_number in range(run_number_start, NUM_RUNS): 
-# 	    print('run {0:d}'.format(run_number))       
-# 	    plot_file('../data/pipe/raw_pipe/run{0:d}_pipe'.format(run_number))
-# 	    plt.savefig("figures2label/pipe/run{0:d}_pipe_raw.png".format(run_number),dpi=600, bbox_inches = 'tight',pad_inches = 0)
-# 	    plt.close()
+# 1- process raw data (read_data) and make plots to see how to split it manually
+# TODO just edit the names of the directories based on the cmd input instead of copying the code
+print('patito dibujando')
+if experiment_name == 'pipe':
+	print('pipe')
+	NUM_RUNS = 26 
+	for run_number in range(run_number_start, NUM_RUNS): 
+	    print('run {0:d}'.format(run_number))       
+	    plot_file('../data/pipe/raw_pipe/run{0:d}_pipe'.format(run_number))
+	    plt.savefig("figures2label/pipe/run{0:d}_pipe_raw.png".format(run_number),dpi=600, bbox_inches = 'tight',pad_inches = 0)
+	    plt.close()
 
-# if experiment_name == 'cap':
-# 	print('cap')
-# 	for run_number in range(run_number_start, NUM_RUNS): 
-# 	    print('run {0:d}'.format(run_number))       
-# 	    plot_file('../data/medium_cap/raw_medium_cap/run{0:d}'.format(run_number))
-# 	    plt.savefig("figures2label/cap/run{0:d}_cap_raw.png".format(run_number),dpi=600, bbox_inches = 'tight',pad_inches = 0)
-# 	    plt.close()
+if experiment_name == 'medium_cap':
+	print('medium_cap')
+	NUM_RUNS = 26
+	for run_number in range(run_number_start, NUM_RUNS): 
+		if run_number == 11:
+			continue
+		print('run {0:d}'.format(run_number))       
+		plot_file('../data/medium_cap/raw_medium_cap/run{0:d}'.format(run_number))
+		plt.savefig("figures2label/medium_cap/run{0:d}_cap_raw.png".format(run_number),dpi=600, bbox_inches = 'tight',pad_inches = 0)
+		plt.close()
 
-# if experiment_name == 'bulb':
-# 	print('bulb')
-# 	for run_number in range(run_number_start, NUM_RUNS): 
-# 	    print('run {0:d}'.format(run_number))       
-# 	    plot_file('../data/bulb/raw_bulb/run{0:d}_bulb'.format(run_number))
-# 	    plt.savefig("figures2label/bulb/run{0:d}_bulb_raw.png".format(run_number),dpi=600, bbox_inches = 'tight',pad_inches = 0)
-# 	    plt.close()
+if experiment_name == 'big_cap':
+	print('big_cap')
+	for run_number in range(run_number_start, NUM_RUNS): 
+	    print('run {0:d}'.format(run_number))       
+	    plot_file('../data/big_cap/raw_big_cap/run{0:d}'.format(run_number))
+	    plt.savefig("figures2label/big_cap/run{0:d}_cap_raw.png".format(run_number),dpi=600, bbox_inches = 'tight',pad_inches = 0)
+	    plt.close()
+
+if experiment_name == 'small_cap':
+	print('small_cap')
+	NUM_RUNS = 22
+	for run_number in range(run_number_start, NUM_RUNS): 
+	    print('run {0:d}'.format(run_number))       
+	    plot_file('../data/small_cap/raw_small_cap/run{0:d}'.format(run_number))
+	    plt.savefig("figures2label/small_cap/run{0:d}_cap_raw.png".format(run_number),dpi=600, bbox_inches = 'tight',pad_inches = 0)
+	    plt.close()
+
+if experiment_name == 'bulb':
+	print('bulb')
+	for run_number in range(run_number_start, NUM_RUNS): 
+	    print('run {0:d}'.format(run_number))       
+	    plot_file('../data/bulb/raw_bulb/run{0:d}_bulb'.format(run_number))
+	    plt.savefig("figures2label/bulb/run{0:d}_bulb_raw.png".format(run_number),dpi=600, bbox_inches = 'tight',pad_inches = 0)
+	    plt.close()
 
 if experiment_name == 'bulb1':
 	print('bulb1')
