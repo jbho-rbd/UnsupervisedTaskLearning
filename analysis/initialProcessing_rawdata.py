@@ -5,12 +5,16 @@ Script that uses read_data and plot_data to process
 the raw sensor measurments after being collected
 
 - run as: 
-python processing_manual_labelling_rawdata.py run_number_start experiment_name
+	python processing_manual_labelling_rawdata.py run_number_start experiment_name
+
+- comment out whatever function you don't want to use in MAIN
 
 - where: 
-run_number_start = first run you want to make a plot of
-experiment_name = cap, pipe or bulb
+	run_number_start = first run you want to make a plot of
+	experiment_name = medium_cap, pipe or bulb
 
+
+Elena, Oct 2020
 ======================================================================================"""
 
 import numpy as np
@@ -31,11 +35,17 @@ rcParams['axes.labelsize'] = 'large'
 rcParams['xtick.labelsize'] = 'x-large'
 rcParams['ytick.labelsize'] = 'x-large'
 
-# inputs and constants
-run_number_start = int(sys.argv[1])
-experiment_name = sys.argv[2]
+#constants
 NUM_RUNS = 21 
 
+# cmd inputs 
+run_number_start = int(sys.argv[1])
+experiment_name = sys.argv[2]
+
+
+""" --------------------------------------------------------------------------------------
+   Utility Functions
+----------------------------------------------------------------------------------------"""
 def on_plot_hover(event):
     # Iterating over each data member plotted
     for curve in plt.get_lines():
@@ -43,115 +53,81 @@ def on_plot_hover(event):
         if curve.contains(event)[0]:
             print "over %s" % curve.get_gid()
 
-# 1- process raw data (read_data) and make plots to see how to split it manually
-# TODO just edit the names of the directories based on the cmd input instead of copying the code
-print('patito dibujando')
-if experiment_name == 'pipe':
-	print('pipe')
-	NUM_RUNS = 26 
+def process_raw_data(experiment_name):
+	print('patito dibujando raw data')
+	print(experiment_name)	
 	for run_number in range(run_number_start, NUM_RUNS): 
-	    print('run {0:d}'.format(run_number))       
-	    plot_file('../data/pipe/raw_pipe/run{0:d}_pipe'.format(run_number))
-	    plt.savefig("figures2label/pipe/run{0:d}_pipe_raw.png".format(run_number),dpi=600, bbox_inches = 'tight',pad_inches = 0)
-	    plt.close()
-
-if experiment_name == 'medium_cap':
-	print('medium_cap')
-	NUM_RUNS = 26
-	for run_number in range(run_number_start, NUM_RUNS): 
-		if run_number == 11:
-			continue
+		if experiment_name == 'medium_cap':
+			if run_number == 11:
+					continue	
 		print('run {0:d}'.format(run_number))       
-		plot_file('../data/medium_cap/raw_medium_cap/run{0:d}'.format(run_number))
-		plt.savefig("figures2label/medium_cap/run{0:d}_cap_raw.png".format(run_number),dpi=600, bbox_inches = 'tight',pad_inches = 0)
+		plot_file('../data/{0}/raw_{1}/run{2:d}'.format(experiment_name, experiment_name, run_number))
+		plt.savefig("figures2label/{0}/run{1:d}_{2}_raw.png".format(experiment_name,run_number, experiment_name),
+	    	dpi=600, bbox_inches = 'tight',pad_inches = 0)
 		plt.close()
 
-if experiment_name == 'big_cap':
-	print('big_cap')
-	for run_number in range(run_number_start, NUM_RUNS): 
-	    print('run {0:d}'.format(run_number))       
-	    plot_file('../data/big_cap/raw_big_cap/run{0:d}'.format(run_number))
-	    plt.savefig("figures2label/big_cap/run{0:d}_cap_raw.png".format(run_number),dpi=600, bbox_inches = 'tight',pad_inches = 0)
-	    plt.close()
+def interactive_omega_plot(experiment_name, run_number): 
+	'''
+	"interactive" angular velocities plot with tooltip 
+	to give x,y values when hovering over a line on the plot
+	'''
+	print("patito eligiendo tiempos")
+	t, p1, vels, euler, omegas, F, M = read_data1('../data/{0}/raw_{1}/run{2:d}'.format(experiment_name, experiment_name, run_number))
+	fig = plt.figure()
+	# plt = fig.add_subplot(111)
+	plt.plot(t,omegas[:,0],'r',label='$\omega_x$')
+	plt.plot(t,omegas[:,1],'g',label='$\omega_y$')
+	plt.plot(t,omegas[:,2],'b',label='$\omega_z$')
+	# plt.set_ylabel('rad/s')
+	fig.canvas.mpl_connect('motion_notify_event', on_plot_hover)           
+	plt.show()
 
-if experiment_name == 'small_cap':
-	print('small_cap')
-	NUM_RUNS = 22
-	for run_number in range(run_number_start, NUM_RUNS): 
-	    print('run {0:d}'.format(run_number))       
-	    plot_file('../data/small_cap/raw_small_cap/run{0:d}'.format(run_number))
-	    plt.savefig("figures2label/small_cap/run{0:d}_cap_raw.png".format(run_number),dpi=600, bbox_inches = 'tight',pad_inches = 0)
-	    plt.close()
+def manual_labels_plot(experiment_name, run_number):
+	#make plot to see if the manually selected labels look reasonable
+	plot_file('../data/{0}/raw_{1}/run{2:d}'.format(experiment_name, experiment_name, run_number),
+		tlabelfile="../data/{0}/raw_{1}/run{2:d}_tlabels_test".format(experiment_name, experiment_name, run_number),
+		prlabelfile="../data/{0}/raw_{1}/run{2:d}_prmlabels_test".format(experiment_name, experiment_name, run_number))
+	plt.savefig("figures2label/{0}/run{1:d}_raw_labelTest.png".format(experiment_name, run_number),
+		dpi=600, bbox_inches = 'tight',pad_inches = 0)
+	plt.close()
 
-if experiment_name == 'bulb':
-	print('bulb')
-	for run_number in range(run_number_start, NUM_RUNS): 
-	    print('run {0:d}'.format(run_number))       
-	    plot_file('../data/bulb/raw_bulb/run{0:d}_bulb'.format(run_number))
-	    plt.savefig("figures2label/bulb/run{0:d}_bulb_raw.png".format(run_number),dpi=600, bbox_inches = 'tight',pad_inches = 0)
-	    plt.close()
+def save_manual_labels(experiment_name, run_number, vlines, labels):
+	np.savetxt("../data/{0}/raw_{1}/run{2:d}_tlabels".format(experiment_name, experiment_name,run_number),
+		vlines[1:])
+	np.savetxt("../data/{0}/raw_{1}/run{2:d}_prmlabels".format(experiment_name, experiment_name,run_number),
+		[label.value for label in labels])
 
-if experiment_name == 'bulb1':
-	print('bulb1')
-	for run_number in range(run_number_start, NUM_RUNS): 
-	    print('run {0:d}'.format(run_number))       
-	    plot_file('../data/bulb/raw_bulb_1/run{0:d}'.format(run_number))
-	    plt.savefig("figures2label/bulb_1/run{0:d}_bulb_raw1.png".format(run_number),dpi=600, bbox_inches = 'tight',pad_inches = 0)
-	    plt.close()
+""" --------------------------------------------------------------------------------------
+   MAIN
+-----------------------------------------------------------------------------------------"""
+if __name__ == "__main__":
 
-# print("patito eligiendo tiempos")
+	# Manual labels
 
-# if experiment_name == 'cap':
-# 	run_number = 1
-# 	# 2- Choose split times and labels and generate run#_tlabels and run#_prmlabels
-# 	vlines=np.array([0.0, 0.84, 3.27, 4.21, 5.07, 6.74, 6.93, 7.44, 7.588, 8.06, 8.20, 8.68, 8.89, 9.56, 10.36])
-# 	np.savetxt("../data/medium_cap/raw_medium_cap/run{0:d}_tlabels_test".format(run_number),vlines[1:])
-# 	labels = [Pr.none, Pr.fsm, Pr.align, Pr.engage, Pr.screw,  Pr.none, Pr.screw, Pr.none, Pr.screw, Pr.none, Pr.screw, Pr.none, Pr.screw, Pr.tighten]
-# 	np.savetxt("../data/medium_cap/raw_medium_cap/run{0:d}_prmlabels_test".format(run_number),[label.value for label in labels])
-# 	# 3- make plot to see if the manually selected labels look reasonable
-# 	plot_file('../data/medium_cap/raw_medium_cap/run{0:d}'.format(run_number),
-# 		tlabelfile="../data/medium_cap/raw_medium_cap/run{0:d}_tlabels_test".format(run_number),
-# 		prlabelfile="../data/medium_cap/raw_medium_cap/run{0:d}_prmlabels_test".format(run_number))
-# 	plt.savefig("figures2label/cap/run{0:d}_raw_labelTest.png".format(run_number),dpi=600, bbox_inches = 'tight',pad_inches = 0)
-# 	plt.close()
+	# --- CAP
+	# run 1
+	vlines=np.array([0.0, 0.84, 3.27, 4.21, 5.07, 6.74, 6.93, 7.44, 7.588, 8.06, 8.20, 8.68, 8.89, 9.56, 10.36])
+	labels = [Pr.none, Pr.fsm, Pr.align, Pr.engage, Pr.screw,  Pr.none, Pr.screw, Pr.none, Pr.screw, Pr.none, Pr.screw, Pr.none, Pr.screw, Pr.tighten]
+	
+	# --- PIPE
+	# run 1
+	vlines=np.array([0.0, 1.2, 4.00, 5.65, 6.38,
+		7.11, 7.38, 9.03, 9.75, 10.43, 11.19, 11.83, 12.36, 13.09, 13.76, 14.60, 15.52, 
+		17,18.5])
+	labels = [Pr.none, Pr.fsm, Pr.align, Pr.engage, 
+		Pr.screw, Pr.none, Pr.screw, Pr.none, Pr.screw, Pr.none, Pr.screw, Pr.none, Pr.screw, Pr.none, Pr.screw, Pr.none, 
+		Pr.tighten, Pr.none] #17
 
-# if experiment_name == 'pipe':
-# 	run_number = 1
-	# "interactive" angular velocities plot with tooltip to give x,y values when hovering over a line on the plot
-	# t, p1, vels, euler, omegas, F, M = read_data1('../data/pipe/raw_pipe/run{0:d}_pipe'.format(run_number))
-	# fig = plt.figure()
-	# # plt = fig.add_subplot(111)
-	# plt.plot(t,omegas[:,0],'r',label='$\omega_x$')
-	# plt.plot(t,omegas[:,1],'g',label='$\omega_y$')
-	# plt.plot(t,omegas[:,2],'b',label='$\omega_z$')
-	# # plt.set_ylabel('rad/s')
-	# fig.canvas.mpl_connect('motion_notify_event', on_plot_hover)           
-	# plt.show()
-	# 2- Choose split times and labels and generate run#_tlabels and run#_prmlabels
-	# vlines=np.array([0.0, 1.2, 4.00, 5.65, 6.38,
-	# 	7.11, 7.38, 9.03, 10.43, 11.19, 11.83, 12.36, 13.09, 13.76, 14.60, 15.52, 15.97,
-	# 	17,18.5])
-	# vlines=np.array([0.0, 1.2, 4.00, 5.65, 6.38,
-	# 	7.11, 7.38, 9.03, 9.75, 10.43, 11.19, 11.83, 12.36, 13.09, 13.76, 14.60, 15.52, 
-	# 	17,18.5])
-	# np.savetxt("../data/pipe/raw_pipe/run{0:d}_tlabels".format(run_number),vlines[1:])
-	# labels = [Pr.none, Pr.fsm, Pr.align, Pr.engage, 
-	# 	Pr.screw, Pr.none, Pr.screw, Pr.none, Pr.screw, Pr.none, Pr.screw, Pr.none, Pr.screw, Pr.none, Pr.screw, Pr.none, 
-	# 	Pr.tighten, Pr.none] #17
-	# np.savetxt("../data/pipe/raw_pipe/run{0:d}_prmlabels".format(run_number),[label.value for label in labels])
-	# # 3- make plot to see if the manually selected labels look reasonable
-	# plot_file('../data/pipe/raw_pipe/run{0:d}_pipe'.format(run_number),
-	# 	tlabelfile="../data/pipe/raw_pipe/run{0:d}_tlabels".format(run_number),
-	# 	prlabelfile="../data/pipe/raw_pipe/run{0:d}_prmlabels".format(run_number))
-	# plt.savefig("figures2label/pipe/run{0:d}_raw_labels.png".format(run_number),dpi=600, bbox_inches = 'tight',pad_inches = 0)
-	# plt.close()
+	# 1- process raw data (read_data) and make plots to see how to split it manually
+	process_raw_data(experiment_name)
 
-print("patito ha terminado!")
+	# 2- interactive plot
+	# interactive_omega_plot(experiment_name, run_number_start)
 
+	# 3- select labels and and save 
+	# save_manual_labels(experiment_name, run_number_start, vlines, labels)
 
+	# 4 - plot manual segmentation
+	# manual_labels_plot(experiment_name, run_number_start)
 
-# process raw data
-
-# interactive plot
-
-# select labels and plot
+	print("patito ha terminado initial processing!")

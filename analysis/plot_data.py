@@ -34,7 +34,8 @@ def plot_file(file,tlabelfile=None,prlabelfile=None,tlabelfileTruth=None,prlabel
         - prlabelfile: text file with list of primitives as an integer 
 
     """    
-    t, p1, vels, euler, omegas, F, M = read_data1(file, '../data/medium_cap/raw_medium_cap/bias.force')#,t0=0,t1=5.0)
+    # t, p1, vels, euler, omegas, F, M = read_data1(file, '../data/medium_cap/raw_medium_cap/bias.force')#,t0=0,t1=5.0)
+    t, p1, vels, euler, omegas, F, M = read_data1(file)
      
     # Figure: Frames representing the cap trajectory and pose
     # fig = plt.figure()
