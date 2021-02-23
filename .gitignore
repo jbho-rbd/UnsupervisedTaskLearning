@@ -47,3 +47,7 @@ training/__pycache__/
 training/output_probabilities/
 training/test_set_labels/
 training/model_loss_and_accuracy/
+
+# others
+analysis/figures2label/
+analysis/__pycache__/

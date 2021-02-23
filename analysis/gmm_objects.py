@@ -43,7 +43,8 @@ n_primitives = 6
 numIterTrain = 20
 numIterTest = 20
 numTMatrixUpdates = 1
-setup = 'pipe'
+# setup = 'pipe'
+setup = 'bulb'
 
 """ --------------------------------------------------------------------------------------
    Utility Functions

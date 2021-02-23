@@ -36,8 +36,8 @@ from plot_data import getlabels, plot_file , compute_success_rate
 -----------------------------------------------------------------------------------------"""
 NUM_RUNS = 3 #20 #it will run the gmm for this number-1
 n_primitives = 6  
-numIterTrain = 5 #20
-numIterTest = 5 #20
+numIterTrain = 20 #20
+numIterTest = 20 #20
 numTMatrixUpdates = 1 #15
 
 """ --------------------------------------------------------------------------------------
