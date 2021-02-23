@@ -1,20 +1,24 @@
 """======================================================================================
-processingAndlabelling_rawdata.py
+initialProcessing_rawdata.py
  
 Script that uses read_data and plot_data to process 
 the raw sensor measurments after being collected
 
-- run as: 
-	python processing_manual_labelling_rawdata.py run_number_start experiment_name
+HOWTO RUN FILE: 
+	- python initialProcessing_rawdata.py run_number_start experiment_name
+	- comment out whatever function you don't want to use in MAIN
 
-- comment out whatever function you don't want to use in MAIN
+INPUTS: 
+	- run_number_start = first run you want to make a plot of
+	- experiment_name = medium_cap, pipe or bulb
 
-- where: 
-	run_number_start = first run you want to make a plot of
-	experiment_name = medium_cap, pipe or bulb
+OUTPUTS:
+	- plots of sensor data without vertical segmentation lines
+	- saves vlines and labels to corresponding /data folder
+	- plots sensor data with vertical lines according to manually selected vlines and labels
 
 
-Elena, Oct 2020
+Elena, Feb 2021
 ======================================================================================"""
 
 import numpy as np
@@ -121,7 +125,7 @@ if __name__ == "__main__":
 	# 1- process raw data (read_data) and make plots to see how to split it manually
 	process_raw_data(experiment_name)
 
-	# 2- interactive plot
+	# 2- interactive plot of one sensor variable
 	# interactive_omega_plot(experiment_name, run_number_start)
 
 	# 3- select labels and and save 
