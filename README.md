@@ -1,5 +1,5 @@
-# rubberDucky1
-Hi I'm a pato. Make sure you have python3.
+# Unsupervised Task Learning
+A project for semi-supervised segmentation of sensor data from human demonstrations. A hidden markov model with particle filter is used to model the system and which "task" is currently being performed. 
 
 # Contents 
 ## Analysis: 
